@@ -43,6 +43,10 @@ jobs:
         run: |
           cp App.js bus.js config.js player.windows.js AviWin/
           cp player.native.js player.web.js AviWin/ || true
+          cp windows-native/AviAudio.h AviWin/windows/AviWin/AviAudio.h
+          sed -i 's/#include "NativeModules.h"/#include "NativeModules.h"\n#include "AviAudio.h"/' AviWin/windows/AviWin/ReactPackageProvider.cpp
+          grep -n AviAudio AviWin/windows/AviWin/ReactPackageProvider.cpp
+          sed -i 's/>AviWin</>Avi Music</; s/DisplayName="AviWin"/DisplayName="Avi Music"/' AviWin/windows/AviWin/Package.appxmanifest
           sed -i "s/|| 'dev')/|| '${{ github.run_number }}')/" AviWin/App.js
           cat > AviWin/index.js <<'JS'
           import { AppRegistry } from 'react-native';
