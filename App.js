@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View, Text, TextInput, FlatList, Image, Pressable, StyleSheet,
-  useColorScheme, Platform, ActivityIndicator, StatusBar,
+  useColorScheme, Platform, ActivityIndicator, StatusBar, Linking,
 } from 'react-native';
 import * as player from './player';
 import { bus } from './bus';
@@ -74,6 +74,25 @@ export default function App() {
     ? { bg: '#000', fg: '#fff', sub: '#9a9aa0', card: '#1c1c1e', line: '#2c2c2e' }
     : { bg: '#fff', fg: '#111', sub: '#6e6e73', card: '#f2f2f7', line: '#e5e5ea' };
 
+  const [upd, setUpd] = useState(null);
+  useEffect(() => {
+    const pre = Platform.OS === 'windows' ? 'win-' : Platform.OS === 'android' ? 'app-' : null;
+    const mine = parseInt(BUILD, 10);
+    if (!pre || !mine) return;
+    fetch('https://api.github.com/repos/avrahamyona/avi-music-app/releases?per_page=30')
+      .then((r) => r.json())
+      .then((list) => {
+        let best = null;
+        for (const rel of list || []) {
+          if (!rel.tag_name || rel.tag_name.indexOf(pre) !== 0) continue;
+          const n = parseInt(rel.tag_name.slice(pre.length), 10);
+          const asset = (rel.assets || []).find((x) => /\.(apk|exe)$/i.test(x.name));
+          if (n > mine && asset && (!best || n > best.n)) best = { n, url: asset.browser_download_url };
+        }
+        if (best) setUpd(best);
+      })
+      .catch(() => {});
+  }, []);
   const [q, setQ] = useState('');
   const [results, setResults] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -158,6 +177,11 @@ export default function App() {
           <Text style={{ color: c.fg, fontSize: 20 }}>{dark ? '☀️' : '🌙'}</Text>
         </Pressable>
       </View>
+      {!!upd && (
+        <Pressable onPress={() => Linking.openURL(upd.url)} style={{ backgroundColor: '#1db954', padding: 10, marginHorizontal: 12, borderRadius: 10 }}>
+          <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '700' }}>{'גרסה חדשה v' + upd.n + ' זמינה - הקש להורדה'}</Text>
+        </Pressable>
+      )}
       <TextInput
         value={q} onChangeText={setQ} onSubmitEditing={search} returnKeyType="search"
         placeholder="חפש שירים, אמנים..." placeholderTextColor={c.sub}
