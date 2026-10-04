@@ -1,0 +1,62 @@
+name: iOS
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/ios.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ios
+  cancel-in-progress: true
+
+jobs:
+  ios-unsigned:
+    runs-on: macos-14
+    env:
+      EXPO_PUBLIC_BUILD: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npx expo install --fix
+      - name: Generate app icon
+        run: |
+          pip3 install pillow || python3 -m pip install pillow
+          python3 - <<'PY'
+          from PIL import Image, ImageDraw
+          import os
+          os.makedirs('assets', exist_ok=True)
+          im = Image.new('RGB', (1024, 1024), (250, 45, 72))
+          d = ImageDraw.Draw(im)
+          d.ellipse((212, 212, 812, 812), fill=(255, 255, 255))
+          d.polygon([(420, 360), (420, 664), (690, 512)], fill=(250, 45, 72))
+          im.save('assets/icon.png')
+          PY
+      - name: Prebuild iOS
+        run: npx expo prebuild --platform ios
+      - name: Build unsigned archive
+        run: |
+          cd ios
+          WS=$(ls -d *.xcworkspace | head -1)
+          SCHEME="${WS%.xcworkspace}"
+          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -archivePath "$PWD/build/App.xcarchive" archive \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" | tail -40
+          APP=$(ls -d build/App.xcarchive/Products/Applications/*.app | head -1)
+          mkdir -p Payload && cp -R "$APP" Payload/
+          zip -qry ../AviMusic.ipa Payload
+      - name: Check ipa
+        run: ls -l AviMusic.ipa && unzip -l AviMusic.ipa | head -8
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ios-${{ github.run_number }}
+          name: Avi Music iOS ${{ github.run_number }} (unsigned ipa)
+          files: AviMusic.ipa
+          make_latest: false
