@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: build
@@ -43,6 +45,10 @@ jobs:
           PY
       - name: Export web
         run: npx expo export -p web
+      - name: Upload web for Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
       - name: Zip web
         run: cd dist && zip -r ../AviMusic-web.zip .
       - name: Prebuild Android
@@ -59,3 +65,13 @@ jobs:
             AviMusic.apk
             AviMusic-web.zip
           make_latest: true
+
+  deploy-web:
+    needs: android-and-web
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
