@@ -4,11 +4,11 @@ import {
   useColorScheme, I18nManager, Platform, ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Audio } from 'expo-av';
+import * as player from './player';
+import { bus } from './bus';
 
-const VERSION = '0.1.0';
+const VERSION = '0.2.0';
 const BUILD = process.env.EXPO_PUBLIC_BUILD || 'dev';
-const WORKER = 'https://avi-music-audio.avi-music.workers.dev';
 const PIPED = [
   'https://api.piped.private.coffee',
   'https://pipedapi.kavin.rocks',
@@ -84,17 +84,25 @@ export default function App() {
   const [playing, setPlaying] = useState(false);
   const [pos, setPos] = useState(0);
   const [dur, setDur] = useState(0);
-  const sound = useRef(null);
   const gen = useRef(0);
   const barW = useRef(1);
+  const resultsRef = useRef([]);
+  const curRef = useRef(null);
+  const playRef = useRef(null);
+  resultsRef.current = results;
+  curRef.current = cur;
 
   useEffect(() => {
-    Audio.setAudioModeAsync({
-      staysActiveInBackground: true,
-      playsInSilentModeIOS: true,
-      shouldDuckAndroid: true,
-    }).catch(() => {});
-    return () => { sound.current && sound.current.unloadAsync().catch(() => {}); };
+    player.init().catch(() => {});
+    const off = player.on((st) => {
+      if (st.playing !== undefined) setPlaying(st.playing);
+      if (st.pos !== undefined) { setPos(st.pos); setDur(st.dur || 0); }
+      if (st.ended) go(1);
+    });
+    const o1 = bus.on('next', () => go(1));
+    const o2 = bus.on('prev', () => go(-1));
+    player.setHandlers({ next: () => go(1), prev: () => go(-1) });
+    return () => { off(); o1(); o2(); };
   }, []);
 
   const search = useCallback(async () => {
@@ -109,67 +117,33 @@ export default function App() {
     setBusy(false);
   }, [q]);
 
-  const onStatus = useCallback((st) => {
-    if (!st.isLoaded) return;
-    setPlaying(st.isPlaying);
-    setPos((st.positionMillis || 0) / 1000);
-    setDur((st.durationMillis || 0) / 1000);
-  }, []);
-
-  const loadId = async (id, g) => {
-    if (sound.current) { await sound.current.unloadAsync().catch(() => {}); sound.current = null; }
-    const { sound: s, status: st } = await Audio.Sound.createAsync(
-      { uri: WORKER + '/audio/' + id }, { shouldPlay: true }, onStatus);
-    if (g !== gen.current) { await s.unloadAsync().catch(() => {}); return false; }
-    if (!st.isLoaded) { await s.unloadAsync().catch(() => {}); return false; }
-    sound.current = s;
-    return true;
+  // Queue = the current results list. Next/previous move within it.
+  const go = (d) => {
+    const list = resultsRef.current;
+    const c = curRef.current;
+    const i = c ? list.findIndex((t) => t.id === c.id) : -1;
+    if (i < 0) return;
+    const n = list[i + d];
+    if (n) playRef.current(n);
   };
 
   // A failing song is never swapped for another: retry the same id, then say so.
   const play = async (t) => {
     const g = ++gen.current;
-    setCur(t); setStatus('טוען...'); setPos(0); setDur(0);
-    const tried = new Set();
-    const attempt = async (id) => {
-      tried.add(id);
-      try { return await loadId(id, g); } catch (e) { return false; }
-    };
+    setCur(t); curRef.current = t; setStatus('טוען...'); setPos(0); setDur(0);
     for (let i = 0; i < 3; i++) {
       if (g !== gen.current) return;
-      if (await attempt(t.id)) { if (g === gen.current) setStatus(''); return; }
+      if (await player.load(t)) { if (g === gen.current) setStatus(''); return; }
     }
-    if (g !== gen.current) return;
     if (g === gen.current) setStatus('השיר לא זמין כרגע במקורות הישירים. לא עברנו לשיר אחר.');
   };
+  playRef.current = play;
 
-  const toggle = async () => {
-    if (!sound.current) return;
-    const st = await sound.current.getStatusAsync();
-    if (st.isLoaded) st.isPlaying ? sound.current.pauseAsync() : sound.current.playAsync();
-  };
-
-  // Web: media keys / system media overlay through the Media Session API.
-  useEffect(() => {
-    if (Platform.OS !== 'web' || typeof navigator === 'undefined' || !navigator.mediaSession) return;
-    const ms = navigator.mediaSession;
-    if (cur && typeof MediaMetadata !== 'undefined') {
-      ms.metadata = new MediaMetadata({
-        title: cur.title, artist: cur.artist,
-        artwork: cur.thumb ? [{ src: cur.thumb }] : [],
-      });
-    }
-    ms.playbackState = playing ? 'playing' : 'paused';
-    try {
-      ms.setActionHandler('play', () => sound.current && sound.current.playAsync());
-      ms.setActionHandler('pause', () => sound.current && sound.current.pauseAsync());
-    } catch (e) {}
-  }, [cur, playing]);
-
+  const toggle = () => { player.toggle(); };
   const seek = (e) => {
-    if (!sound.current || !dur) return;
+    if (!dur) return;
     const x = e.nativeEvent.locationX;
-    sound.current.setPositionAsync(Math.max(0, Math.min(1, x / barW.current)) * dur * 1000);
+    player.seek(Math.max(0, Math.min(1, x / barW.current)) * dur);
   };
 
   return (
@@ -207,8 +181,14 @@ export default function App() {
           <Text numberOfLines={1} style={{ flex: 1, color: c.fg, fontWeight: '700' }}>
             {cur ? cur.title : 'בחר שיר מהתוצאות'}
           </Text>
+          <Pressable onPress={() => go(-1)} disabled={!cur} style={s.skip}>
+            <Text style={{ color: c.fg, fontSize: 20 }}>⏮</Text>
+          </Pressable>
           <Pressable onPress={toggle} disabled={!cur} style={s.play}>
             <Text style={{ color: '#fff', fontSize: 22 }}>{playing ? '❚❚' : '▶'}</Text>
+          </Pressable>
+          <Pressable onPress={() => go(1)} disabled={!cur} style={s.skip}>
+            <Text style={{ color: c.fg, fontSize: 20 }}>⏭</Text>
           </Pressable>
         </View>
         {!!status && <Text style={{ color: c.sub, marginTop: 2 }}>{status}</Text>}
@@ -237,5 +217,6 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6 },
   thumb: { width: 52, height: 52, borderRadius: 6, backgroundColor: '#8884' },
   player: { padding: 12, borderTopWidth: 1 },
+  skip: { width: 40, height: 44, alignItems: 'center', justifyContent: 'center' },
   play: { width: 44, height: 44, borderRadius: 22, backgroundColor: RED, alignItems: 'center', justifyContent: 'center' },
 });
