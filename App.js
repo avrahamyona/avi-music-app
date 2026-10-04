@@ -126,8 +126,7 @@ export default function App() {
     return true;
   };
 
-  // A failing song is never swapped for a different song: retry the same id,
-  // then other recordings of the same title/artist, then say it is unavailable.
+  // A failing song is never swapped for another: retry the same id, then say so.
   const play = async (t) => {
     const g = ++gen.current;
     setCur(t); setStatus('טוען...'); setPos(0); setDur(0);
@@ -136,21 +135,11 @@ export default function App() {
       tried.add(id);
       try { return await loadId(id, g); } catch (e) { return false; }
     };
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < 3; i++) {
       if (g !== gen.current) return;
       if (await attempt(t.id)) { if (g === gen.current) setStatus(''); return; }
     }
     if (g !== gen.current) return;
-    setStatus('מחפש הקלטה אחרת');
-    try {
-      const alts = await searchTracks(t.title + ' ' + t.artist);
-      const nt = norm(t.title);
-      const cands = alts.filter((a) => !tried.has(a.id) && norm(a.title).includes(nt)).slice(0, 6);
-      for (const a of cands) {
-        if (g !== gen.current) return;
-        if (await attempt(a.id)) { if (g === gen.current) setStatus(''); return; }
-      }
-    } catch (e) {}
     if (g === gen.current) setStatus('השיר לא זמין כרגע במקורות הישירים. לא עברנו לשיר אחר.');
   };
 
