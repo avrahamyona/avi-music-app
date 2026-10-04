@@ -772,14 +772,14 @@ export default function App() {
   );
 
   const ctl = (big) => (
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', direction: 'ltr' }}>
       <Pressable onPress={() => go(-1)} style={s.skip}><Text style={{ color: c.fg, fontSize: big ? 30 : 20 }}>⏮</Text></Pressable>
       <Pressable onPress={() => player.toggle()} style={[s.play, big && { width: 64, height: 64, borderRadius: 32 }]}><Text style={{ color: '#fff', fontSize: big ? 28 : 20 }}>{playing ? '❚❚' : '▶'}</Text></Pressable>
       <Pressable onPress={() => go(1)} style={s.skip}><Text style={{ color: c.fg, fontSize: big ? 30 : 20 }}>⏭</Text></Pressable>
     </View>
   );
   const bar = (
-    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', direction: 'ltr' }}>
       <Text style={{ color: c.sub, width: 40 }}>{fmt(pos)}</Text>
       <Pressable onPress={seek} style={{ flex: 1, height: 28, justifyContent: 'center' }} onLayout={(e) => { barW.current = e.nativeEvent.layout.width || 1; }}>
         <View style={{ height: 4, borderRadius: 2, backgroundColor: c.line }}>
