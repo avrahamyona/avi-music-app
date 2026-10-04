@@ -1,12 +1,12 @@
-# Avi Music for Windows
+# Avi Music
 
-A native Windows 11 app (Flutter, not a WebView) for the Avi Music ad-free player. Free and open.
-The web version lives in a separate repo (avrahamyona/nagan-tzaf) and is untouched.
+One React Native (Expo) codebase for web, Android (APK) and iPhone. Free and open.
+The older web app (avrahamyona/nagan-tzaf) is separate and untouched.
 
-- Build: GitHub Actions on a Windows runner, output is a zip on the Releases page.
 - Audio: the existing Cloudflare Worker (`/audio/<id>`), search through public Piped hosts.
 - Rules: no ads, no YouTube embed, a failing song is never swapped for a different song.
+- Builds: GitHub Actions publishes `AviMusic.apk` and `AviMusic-web.zip` on the Releases page.
 
-## Auto-update design (not built yet)
-Each CI build publishes a Release (`build-N`). The app will check the latest release through
-the public GitHub API, compare the build number, download the zip and replace itself on restart.
+## iPhone without a paid Apple developer account
+Needs a Mac (an iOS build must be signed by Xcode). A free Apple ID signs an app for 7 days;
+it must be re-signed weekly (AltStore/Sideloadly automate that). Not built yet.
