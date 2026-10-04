@@ -285,7 +285,7 @@ function Library({ c, A }) {
           {!!msg && <Text style={{ color: c.sub, textAlign: 'center', margin: 10 }}>{msg}</Text>}
           <Pressable onPress={() => A.newPlaylist('פלייליסט חדש')} style={{ alignSelf: 'center', marginTop: 10 }}><Text style={{ color: RED, fontWeight: '700' }}>+ פלייליסט חדש</Text></Pressable>
           {A.playlists.map((p) => (
-            <Pressable key={p.id} onPress={() => A.open({ title: p.name, items: p.tracks })} style={s.row}>
+            <Pressable key={p.id} onPress={() => A.open({ title: p.name, items: p.tracks, pid: p.id })} style={s.row}>
               {p.tracks[0] && p.tracks[0].thumb ? <Image source={{ uri: p.tracks[0].thumb }} style={s.thumb} /> : <View style={s.thumb} />}
               <View style={{ flex: 1, marginHorizontal: 10 }}>
                 <Text numberOfLines={1} style={{ color: c.fg, fontWeight: '600', textAlign: 'right' }}>{p.name}</Text>
@@ -319,28 +319,111 @@ function SearchTab({ c, A }) {
   const [res, setRes] = useState([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  const go = async () => {
-    const x = q.trim(); if (!x) return;
-    setBusy(true); setErr('');
+  const [pill, setPill] = useState('all');
+  const [recent, setRecent] = useState([]);
+  const [albums, setAlbums] = useState(null);
+  const [done, setDone] = useState('');
+  useEffect(() => { store.get('recent', []).then(setRecent); }, []);
+  const go = async (text) => {
+    const x = String(text !== undefined ? text : q).trim(); if (!x) return;
+    setQ(x); setBusy(true); setErr(''); setAlbums(null); setDone(x);
+    setRecent((r) => { const n = [x, ...r.filter((y) => y !== x)].slice(0, 8); store.set('recent', n); return n; });
     try { const r = await searchCached(x); setRes(r); if (!r.length) setErr('לא נמצאו תוצאות'); } catch (e) { setErr('החיפוש נכשל, נסה שוב'); }
     setBusy(false);
   };
+  useEffect(() => {
+    if (pill !== 'albums' || !res.length || albums) return;
+    const ch = (res.find((t) => t.ch) || {}).ch;
+    if (!ch) { setAlbums([]); return; }
+    wjson('/music-artist/' + ch).then((j) => setAlbums((j.releases || []).filter((r) => r.plId))).catch(() => setAlbums([]));
+  }, [pill, res]);
+  const artists = [];
+  const seen = new Set();
+  for (const t of res) { const k = t.ch || norm(t.artist); if (!seen.has(k)) { seen.add(k); artists.push(t); } }
   return (
     <View>
-      <TextInput value={q} onChangeText={setQ} onSubmitEditing={go} returnKeyType="search" placeholder="חפש שירים, אמנים..." placeholderTextColor={c.sub}
+      <TextInput value={q} onChangeText={setQ} onSubmitEditing={() => go()} returnKeyType="search" placeholder="חפש שירים, אמנים..." placeholderTextColor={c.sub}
         style={[s.input, { backgroundColor: c.card, color: c.fg, textAlign: 'right' }]} />
+      {!done && !!recent.length && (
+        <View style={{ paddingHorizontal: 16 }}>
+          <Text style={[s.h2, { color: c.fg, marginHorizontal: 0, marginBottom: 8 }]}>חיפושים אחרונים</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            {recent.map((r) => (
+              <Pressable key={r} onPress={() => go(r)} style={{ backgroundColor: c.card, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 6, marginLeft: 8, marginBottom: 8 }}>
+                <Text style={{ color: c.fg }}>{r}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
+      {!!done && (
+        <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginBottom: 6 }}>
+          {[['all', 'הכל'], ['songs', 'שירים'], ['artists', 'אמנים'], ['albums', 'אלבומים']].map(([k, n]) => (
+            <Pressable key={k} onPress={() => setPill(k)} style={{ paddingVertical: 5, paddingHorizontal: 14, borderRadius: 16, marginLeft: 8, backgroundColor: pill === k ? RED : c.card }}>
+              <Text style={{ color: pill === k ? '#fff' : c.fg, fontWeight: '600' }}>{n}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
       {busy && <ActivityIndicator color={RED} style={{ margin: 6 }} />}
       {!!err && <Text style={{ color: c.sub, textAlign: 'center', margin: 8 }}>{err}</Text>}
-      {res.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={() => A.sheet(t)} onPress={() => A.play(t, res)} />)}
+      {(pill === 'all' || pill === 'artists') && !!res.length && (
+        <View>
+          {pill === 'all' && <Text style={[s.h2, { color: c.fg, marginVertical: 8 }]}>אמנים</Text>}
+          {artists.slice(0, pill === 'all' ? 3 : 20).map((t) => (
+            <Pressable key={t.ch || t.artist} onPress={() => A.openArtist(t.artist, t.ch)} style={s.row}>
+              {t.thumb ? <Image source={{ uri: t.thumb }} style={{ width: 52, height: 52, borderRadius: 26 }} /> : <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: c.card }} />}
+              <Text style={{ color: c.fg, fontWeight: '600', flex: 1, marginHorizontal: 12, textAlign: 'right' }}>{String(t.artist).replace(/ - Topic$/i, '')}</Text>
+              <Text style={{ color: c.sub }}>{'‹'}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+      {pill === 'albums' && (
+        <View>
+          {!albums && <ActivityIndicator color={RED} style={{ margin: 14 }} />}
+          {!!albums && !albums.length && <Text style={{ color: c.sub, textAlign: 'center', margin: 14 }}>לא נמצאו אלבומים</Text>}
+          {!!albums && albums.map((al) => (
+            <Pressable key={al.plId} onPress={() => A.openAlbum(al)} style={s.row}>
+              {al.thumb ? <Image source={{ uri: al.thumb }} style={s.thumb} /> : <View style={s.thumb} />}
+              <View style={{ flex: 1, marginHorizontal: 10 }}>
+                <Text numberOfLines={1} style={{ color: c.fg, fontWeight: '600', textAlign: 'right' }}>{al.title}</Text>
+                <Text style={{ color: c.sub, textAlign: 'right' }}>{al.releaseYear || ''}</Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      )}
+      {(pill === 'all' || pill === 'songs') && (pill === 'all' && !!res.length ? <Text style={[s.h2, { color: c.fg, marginVertical: 8 }]}>שירים</Text> : null)}
+      {(pill === 'all' || pill === 'songs') && res.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={() => A.sheet(t)} onPress={() => A.play(t, res)} />)}
     </View>
   );
 }
 function ListPage({ c, A, page }) {
+  const pl = page.pid ? A.playlists.find((p) => p.id === page.pid) : null;
+  const items = pl ? pl.tracks : page.items;
+  const [nm, setNm] = useState(page.title);
   return (
     <View>
       <Pressable onPress={A.back} style={{ padding: 16 }}><Text style={{ color: RED, fontSize: 16, textAlign: 'right' }}>{'› חזרה'}</Text></Pressable>
       <Text style={[s.large, { color: c.fg }]}>{page.title}</Text>
-      {page.items.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={() => A.sheet(t)} onPress={() => A.play(t, page.items)} />)}
+      {!!items.length && (
+        <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginTop: 8 }}>
+          <Pressable onPress={() => A.play(items[0], items)} style={{ backgroundColor: RED, borderRadius: 18, paddingHorizontal: 22, paddingVertical: 7, marginLeft: 8 }}><Text style={{ color: '#fff', fontWeight: '700' }}>{'▶ נגן'}</Text></Pressable>
+          <Pressable onPress={() => { const sh = items.slice().sort(() => Math.random() - 0.5); A.play(sh[0], sh); }} style={{ backgroundColor: c.card, borderRadius: 18, paddingHorizontal: 22, paddingVertical: 7 }}><Text style={{ color: c.fg, fontWeight: '700' }}>ערבוב</Text></Pressable>
+        </View>
+      )}
+      {!!pl && (
+        <View style={{ paddingHorizontal: 16, marginTop: 10 }}>
+          <TextInput value={nm} onChangeText={setNm} onSubmitEditing={() => A.renamePlaylist(pl.id, nm)} placeholder="שם הפלייליסט" placeholderTextColor={c.sub}
+            style={[s.input, { backgroundColor: c.card, color: c.fg, textAlign: 'right', marginHorizontal: 0 }]} />
+          <View style={{ flexDirection: 'row' }}>
+            <Pressable onPress={() => A.renamePlaylist(pl.id, nm)} style={{ padding: 8 }}><Text style={{ color: RED, fontWeight: '700' }}>שמור שם</Text></Pressable>
+            <Pressable onPress={() => { A.removePlaylist(pl.id); A.back(); }} style={{ padding: 8 }}><Text style={{ color: c.sub }}>מחק פלייליסט</Text></Pressable>
+          </View>
+        </View>
+      )}
+      {items.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={() => A.sheet(t)} onPress={() => A.play(t, items)} />)}
     </View>
   );
 }
@@ -860,7 +943,7 @@ export default function App() {
         {showLyr && <View style={{ width: '100%', maxWidth: 520 }}><Lyrics c={c} cur={cur} pos={pos} dur={dur} /></View>}
         <Text style={[s.h2, { color: c.fg, alignSelf: 'flex-end', marginTop: 10 }]}>הבא בתור</Text>
         <View style={{ width: '100%' }}>
-          {queue.slice(Math.max(0, queue.findIndex((t) => t.id === cur.id) + 1), 40).map((t) => <Row key={t.id} t={t} c={c} active={false} fav={isFav(t)} onFav={() => toggleFav(t)} onPress={() => play(t)} />)}
+          {queue.slice(Math.max(0, queue.findIndex((t) => t.id === cur.id) + 1), 40).map((t) => <Row key={t.id} t={t} c={c} active={false} fav={isFav(t)} onFav={() => toggleFav(t)} onMore={() => setSheet(t)} onPress={() => play(t)} />)}
         </View>
       </ScrollView>
       </View>
