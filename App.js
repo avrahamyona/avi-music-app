@@ -72,7 +72,7 @@ const fmt = (sec) => {
 
 
 const BAD = /נחמן|ברסלב|breslov|nachman|\bdj\b|dj set|דיג'יי|live set|megamix|mashup/i;
-const clean = (list) => list.filter((t) => !BAD.test(t.title + ' ' + t.artist));
+const clean = (list) => list.filter((t) => !BAD.test(t.title + ' ' + t.artist) && !(t.dur > 900));
 const cache = new Map();
 async function searchCached(q) {
   if (cache.has(q)) return cache.get(q);
