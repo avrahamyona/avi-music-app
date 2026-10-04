@@ -1,6 +1,7 @@
 import TrackPlayer, {
   Capability, Event, State, AppKilledPlaybackBehavior,
 } from 'react-native-track-player';
+import * as FileSystem from 'expo-file-system';
 import { WORKER } from './config';
 import { bus } from './bus';
 
@@ -40,12 +41,37 @@ export function setHandlers() { /* native uses the bus (service.js) */ }
 export { bus };
 
 // Resolves true once playback really starts; false if the source fails.
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// The worker's chunked stream is flaky per edge, so download the whole file first
+// (retrying the same song id) and play the local copy.
+async function fetchLocal(id) {
+  const uri = FileSystem.cacheDirectory + id + '.mp4';
+  try {
+    const info = await FileSystem.getInfoAsync(uri);
+    if (info.exists && info.size > 50000) return uri;
+  } catch (e) {}
+  for (let i = 0; i < 4; i++) {
+    try {
+      const r = await FileSystem.downloadAsync(WORKER + '/audio/' + id, uri);
+      if (r.status === 200 || r.status === 206) {
+        const info = await FileSystem.getInfoAsync(uri);
+        if (info.exists && info.size > 50000) return uri;
+      }
+    } catch (e) {}
+    await sleep(1500);
+  }
+  return null;
+}
+
 export async function load(track) {
   await init();
+  const local = await fetchLocal(track.id);
+  if (!local) return false;
   await TrackPlayer.reset();
   await TrackPlayer.add({
     id: track.id,
-    url: WORKER + '/audio/' + track.id,
+    url: local,
     title: track.title,
     artist: track.artist,
     artwork: track.thumb || undefined,
