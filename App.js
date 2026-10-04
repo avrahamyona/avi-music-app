@@ -150,7 +150,10 @@ export default function App() {
       <StatusBar barStyle={dark ? 'light-content' : 'dark-content'} />
       <View style={s.top}>
         <Text style={[s.title, { color: c.fg }]}>Avi Music</Text>
-        <Text style={{ color: c.sub, fontSize: 12 }}>{'גרסה ' + VERSION + ' (build ' + BUILD + ')'}</Text>
+        <View style={{ backgroundColor: '#1db954', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginHorizontal: 8 }}>
+          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>{'v' + BUILD}</Text>
+        </View>
+        <Text style={{ color: c.sub, fontSize: 11 }}>{VERSION}</Text>
         <Pressable onPress={() => setOverride(dark ? 'light' : 'dark')} style={s.theme}>
           <Text style={{ color: c.fg, fontSize: 20 }}>{dark ? '☀️' : '🌙'}</Text>
         </Pressable>
