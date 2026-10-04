@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View, Text, TextInput, FlatList, Image, Pressable, StyleSheet,
-  useColorScheme, Platform, ActivityIndicator, StatusBar, Linking, ScrollView, useWindowDimensions,
+  useColorScheme, Platform, Share, Modal, ActivityIndicator, StatusBar, Linking, ScrollView, useWindowDimensions,
 } from 'react-native';
 import * as player from './player';
 import { bus } from './bus';
@@ -102,9 +102,9 @@ function Card({ t, onPress, c, wide, sub }) {
   );
 }
 
-function Row({ t, onPress, c, active, fav, onFav }) {
+function Row({ t, onPress, c, active, fav, onFav, onMore }) {
   return (
-    <Pressable onPress={onPress} style={[s.row, active && { backgroundColor: c.card }]}>
+    <Pressable onPress={onPress} onLongPress={onMore} style={[s.row, active && { backgroundColor: c.card }]}>
       {t.thumb ? <Image source={{ uri: t.thumb }} style={s.thumb} /> : <View style={s.thumb} />}
       <View style={{ flex: 1, marginHorizontal: 10 }}>
         <Text numberOfLines={1} style={{ color: c.fg, fontWeight: '600', textAlign: 'right' }}>{t.title}</Text>
@@ -112,6 +112,7 @@ function Row({ t, onPress, c, active, fav, onFav }) {
       </View>
       {!!t.dur && <Text style={{ color: c.sub, marginHorizontal: 6 }}>{fmt(t.dur)}</Text>}
       <Pressable onPress={onFav} style={{ padding: 8 }}><Text style={{ color: fav ? RED : c.sub, fontSize: 18 }}>{fav ? '♥' : '♡'}</Text></Pressable>
+      {!!onMore && <Pressable onPress={onMore} style={{ padding: 8 }}><Text style={{ color: c.sub, fontSize: 18 }}>⋯</Text></Pressable>}
     </Pressable>
   );
 }
@@ -134,7 +135,7 @@ function Shelf({ title, query, c, A, wide, rows, limit = 12, hideIfEmpty }) {
       {!items && <ActivityIndicator color={RED} style={{ margin: 14 }} />}
       {!!items && !items.length && <Text style={{ color: c.sub, textAlign: 'right', marginHorizontal: 16 }}>לא זמין כרגע</Text>}
       {!!items && !!items.length && (rows ? items.slice(0, 8).map((t) => (
-        <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onPress={() => A.play(t, items)} />
+        <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={() => A.sheet(t)} onPress={() => A.play(t, items)} />
       )) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
           {items.slice(0, limit).map((t) => <Card key={t.id} t={t} c={c} wide={wide} onPress={() => A.play(t, items)} />)}
@@ -273,7 +274,7 @@ function Library({ c, A }) {
         ))}
       </ScrollView>
       {(sec === 'fav' || sec === 'hist') && !list.length && <Text style={{ color: c.sub, textAlign: 'center', marginTop: 40 }}>{sec === 'fav' ? 'עוד אין מועדפים. הקש על הלב ליד שיר.' : 'עוד לא הושמע כלום.'}</Text>}
-      {(sec === 'fav' || sec === 'hist') && list.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onPress={() => A.play(t, list)} />)}
+      {(sec === 'fav' || sec === 'hist') && list.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={() => A.sheet(t)} onPress={() => A.play(t, list)} />)}
       {sec === 'pls' && (
         <View>
           <TextInput value={url} onChangeText={setUrl} onSubmitEditing={importPl} placeholder="הדבק קישור לפלייליסט ציבורי של יוטיוב" placeholderTextColor={c.sub}
@@ -282,6 +283,7 @@ function Library({ c, A }) {
             <Text style={{ color: '#fff', fontWeight: '700' }}>{busy ? 'מייבא...' : 'ייבוא פלייליסט'}</Text>
           </Pressable>
           {!!msg && <Text style={{ color: c.sub, textAlign: 'center', margin: 10 }}>{msg}</Text>}
+          <Pressable onPress={() => A.newPlaylist('פלייליסט חדש')} style={{ alignSelf: 'center', marginTop: 10 }}><Text style={{ color: RED, fontWeight: '700' }}>+ פלייליסט חדש</Text></Pressable>
           {A.playlists.map((p) => (
             <Pressable key={p.id} onPress={() => A.open({ title: p.name, items: p.tracks })} style={s.row}>
               {p.tracks[0] && p.tracks[0].thumb ? <Image source={{ uri: p.tracks[0].thumb }} style={s.thumb} /> : <View style={s.thumb} />}
@@ -329,7 +331,7 @@ function SearchTab({ c, A }) {
         style={[s.input, { backgroundColor: c.card, color: c.fg, textAlign: 'right' }]} />
       {busy && <ActivityIndicator color={RED} style={{ margin: 6 }} />}
       {!!err && <Text style={{ color: c.sub, textAlign: 'center', margin: 8 }}>{err}</Text>}
-      {res.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onPress={() => A.play(t, res)} />)}
+      {res.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={() => A.sheet(t)} onPress={() => A.play(t, res)} />)}
     </View>
   );
 }
@@ -338,7 +340,7 @@ function ListPage({ c, A, page }) {
     <View>
       <Pressable onPress={A.back} style={{ padding: 16 }}><Text style={{ color: RED, fontSize: 16, textAlign: 'right' }}>{'› חזרה'}</Text></Pressable>
       <Text style={[s.large, { color: c.fg }]}>{page.title}</Text>
-      {page.items.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onPress={() => A.play(t, page.items)} />)}
+      {page.items.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={() => A.sheet(t)} onPress={() => A.play(t, page.items)} />)}
     </View>
   );
 }
@@ -389,7 +391,7 @@ function ArtistPage({ c, A, page }) {
       <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 6 }]}>שירים</Text>
       {!songs && <ActivityIndicator color={RED} style={{ margin: 14 }} />}
       {!!songs && !songs.length && <Text style={{ color: c.sub, textAlign: 'center' }}>לא נמצאו שירים</Text>}
-      {!!songs && songs.slice(0, 10).map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onPress={() => A.play(t, songs)} />)}
+      {!!songs && songs.slice(0, 10).map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={() => A.sheet(t)} onPress={() => A.play(t, songs)} />)}
       {!!albums && !!albums.length && (
         <View style={{ marginTop: 22 }}>
           <Text style={[s.h2, { color: c.fg, marginBottom: 8 }]}>אלבומים וסינגלים</Text>
@@ -443,7 +445,7 @@ function AlbumPage({ c, A, page }) {
       </View>
       {!tracks && <ActivityIndicator color={RED} style={{ margin: 14 }} />}
       {!!err && <Text style={{ color: c.sub, textAlign: 'center', margin: 14 }}>{err}</Text>}
-      {!!tracks && tracks.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onPress={() => A.play(t, tracks)} />)}
+      {!!tracks && tracks.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={() => A.sheet(t)} onPress={() => A.play(t, tracks)} />)}
     </View>
   );
 }
@@ -623,7 +625,7 @@ function MoodPage({ c, A, page }) {
       <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 6 }]}>שירים</Text>
       {!tracks && <ActivityIndicator color={RED} style={{ margin: 14 }} />}
       {!!tracks && !tracks.length && <Text style={{ color: c.sub, textAlign: 'center', margin: 14 }}>לא נמצאו שירים מאומתים כרגע. נסה שוב בעוד רגע.</Text>}
-      {!!tracks && tracks.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onPress={() => A.play(t, tracks)} />)}
+      {!!tracks && tracks.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={() => A.sheet(t)} onPress={() => A.play(t, tracks)} />)}
     </View>
   );
 }
@@ -668,6 +670,14 @@ export default function App() {
   const [dur, setDur] = useState(0);
   const [full, setFull] = useState(false);
   const [showLyr, setShowLyr] = useState(false);
+  const [shuffle, setShuffle] = useState(false);
+  const [repeat, setRepeat] = useState('off');
+  const [sheet, setSheet] = useState(null);
+  const [pick, setPick] = useState(null);
+  const shuffleRef = useRef(false);
+  const repeatRef = useRef('off');
+  shuffleRef.current = shuffle;
+  repeatRef.current = repeat;
   const [history, setHistory] = useState([]);
   const [favs, setFavs] = useState([]);
   const [playlists, setPlaylists] = useState([]);
@@ -689,7 +699,7 @@ export default function App() {
     const off = player.on((st) => {
       if (st.playing !== undefined) setPlaying(st.playing);
       if (st.pos !== undefined) { setPos(st.pos); setDur(st.dur || 0); }
-      if (st.ended) go(1);
+      if (st.ended) go(1, true);
     });
     const o1 = bus.on('next', () => go(1));
     const o2 = bus.on('prev', () => go(-1));
@@ -697,12 +707,19 @@ export default function App() {
     return () => { off(); o1(); o2(); };
   }, []);
 
-  const go = (d) => {
+  const go = (d, auto) => {
     const list = queueRef.current;
     const cc = curRef.current;
     const i = cc ? list.findIndex((t) => t.id === cc.id) : -1;
     if (i < 0) return;
-    const n = list[i + d];
+    if (auto && repeatRef.current === 'one') { playRef.current(cc); return; }
+    if (shuffleRef.current && d > 0 && list.length > 1) {
+      let k = i;
+      while (k === i) k = Math.floor(Math.random() * list.length);
+      playRef.current(list[k]); return;
+    }
+    let n = list[i + d];
+    if (!n && repeatRef.current === 'all' && d > 0) n = list[0];
     if (n) playRef.current(n);
   };
 
@@ -729,11 +746,24 @@ export default function App() {
   const toggleFav = (t) => setFavs((f) => { const n = f.some((x) => x.id === t.id) ? f.filter((x) => x.id !== t.id) : [t, ...f]; store.set('favs', n); return n; });
   const addPlaylist = (p) => setPlaylists((x) => { const n = [p, ...x.filter((y) => y.id !== p.id)]; store.set('playlists', n); return n; });
   const removePlaylist = (id) => setPlaylists((x) => { const n = x.filter((y) => y.id !== id); store.set('playlists', n); return n; });
+  const queueNext = (t) => setQueue((q) => { const cc = curRef.current; const base = q.filter((x) => x.id !== t.id); const i = cc ? base.findIndex((x) => x.id === cc.id) : -1; base.splice(i + 1, 0, t); queueRef.current = base; return base; });
+  const queueLast = (t) => setQueue((q) => { const n = [...q.filter((x) => x.id !== t.id), t]; queueRef.current = n; return n; });
+  const addToPlaylist = (pid, t) => setPlaylists((x) => { const n = x.map((p) => (p.id === pid && !p.tracks.some((y) => y.id === t.id) ? { ...p, tracks: [...p.tracks, t] } : p)); store.set('playlists', n); return n; });
+  const newPlaylist = (name, t) => setPlaylists((x) => { const p = { id: 'u' + Date.now(), name: name || 'פלייליסט חדש', tracks: t ? [t] : [], mine: true }; const n = [p, ...x]; store.set('playlists', n); return n; });
+  const renamePlaylist = (id, name) => setPlaylists((x) => { const n = x.map((p) => (p.id === id ? { ...p, name } : p)); store.set('playlists', n); return n; });
+  const station = async (t) => {
+    try {
+      const r = await searchCached(String(t.artist).replace(/ - Topic$/i, ''));
+      const list = [t, ...r.filter((x) => x.id !== t.id).sort(() => Math.random() - 0.5)];
+      play(t, list);
+    } catch (e) {}
+  };
+  const share = (t) => { try { Share.share({ message: t.title + ' - ' + t.artist + ' https://youtu.be/' + t.id }); } catch (e) {} };
   const open = (p) => setPages((x) => [...x, p]);
   const back = () => setPages((x) => x.slice(0, -1));
   const openArtist = (name, ch) => open({ kind: 'artist', title: String(name).replace(/ - Topic$/i, ''), ch: ch || '' });
   const openAlbum = (al) => open({ kind: 'album', title: al.title, plId: al.plId, thumb: al.thumb, artist: al.artistName || '' });
-  const A = { cur, play, isFav, toggleFav, open, back, openArtist, openAlbum, history, favs, playlists, stats, addPlaylist, removePlaylist };
+  const A = { sheet: (t) => setSheet(t), cur, play, isFav, toggleFav, open, back, openArtist, openAlbum, history, favs, playlists, stats, addPlaylist, removePlaylist, newPlaylist, renamePlaylist };
 
   const seek = (e) => {
     if (!dur) return;
@@ -817,6 +847,12 @@ export default function App() {
         {!!status && <Text style={{ color: c.sub, marginTop: 6, textAlign: 'center' }}>{status}</Text>}
         <View style={{ width: '100%', maxWidth: 420, marginTop: 16 }}>{bar}</View>
         <View style={{ marginTop: 6 }}>{ctl(true)}</View>
+        <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', justifyContent: 'center', marginTop: 4 }}>
+          <Pressable onPress={() => setShuffle((v) => !v)} style={{ padding: 10 }}><Text style={{ color: shuffle ? RED : c.sub, fontSize: 20 }}>⇄</Text></Pressable>
+          <Pressable onPress={() => player.seek(Math.max(0, pos - 10))} style={{ padding: 10 }}><Text style={{ color: c.fg, fontSize: 14, fontWeight: '700' }}>-10</Text></Pressable>
+          <Pressable onPress={() => player.seek(Math.min(dur || pos + 10, pos + 10))} style={{ padding: 10 }}><Text style={{ color: c.fg, fontSize: 14, fontWeight: '700' }}>+10</Text></Pressable>
+          <Pressable onPress={() => setRepeat((r) => (r === 'off' ? 'all' : r === 'all' ? 'one' : 'off'))} style={{ padding: 10 }}><Text style={{ color: repeat === 'off' ? c.sub : RED, fontSize: 20 }}>{repeat === 'one' ? '⟲1' : '⟲'}</Text></Pressable>
+        </View>
         <View style={{ flexDirection: 'row' }}>
           <Pressable onPress={() => toggleFav(cur)} style={{ padding: 10 }}><Text style={{ color: isFav(cur) ? RED : c.sub, fontSize: 26 }}>{isFav(cur) ? '♥' : '♡'}</Text></Pressable>
           <Pressable onPress={() => setShowLyr((v) => !v)} style={{ padding: 10 }}><Text style={{ color: showLyr ? RED : c.sub, fontSize: 18, fontWeight: '700' }}>מילים</Text></Pressable>
@@ -827,6 +863,47 @@ export default function App() {
           {queue.slice(Math.max(0, queue.findIndex((t) => t.id === cur.id) + 1), 40).map((t) => <Row key={t.id} t={t} c={c} active={false} fav={isFav(t)} onFav={() => toggleFav(t)} onPress={() => play(t)} />)}
         </View>
       </ScrollView>
+      </View>
+    </View>
+  );
+
+  const closeSheet = () => { setSheet(null); setPick(null); };
+  const sheetView = sheet && (
+    <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end', alignItems: 'center' }}>
+      <Pressable onPress={closeSheet} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} />
+      <View style={{ width: '100%', maxWidth: 520, backgroundColor: c.bg, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 16, paddingBottom: 28 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+          {sheet.thumb ? <Image source={{ uri: sheet.thumb }} style={s.thumb} /> : <View style={s.thumb} />}
+          <View style={{ flex: 1, marginHorizontal: 10 }}>
+            <Text numberOfLines={1} style={{ color: c.fg, fontWeight: '700', textAlign: 'right' }}>{sheet.title}</Text>
+            <Text numberOfLines={1} style={{ color: c.sub, textAlign: 'right' }}>{sheet.artist}</Text>
+          </View>
+        </View>
+        {!pick ? [
+          ['ניגון הבא', () => { queueNext(sheet); closeSheet(); }],
+          ['הוספה לסוף התור', () => { queueLast(sheet); closeSheet(); }],
+          ['הוספה לפלייליסט', () => setPick({ name: '' })],
+          [isFav(sheet) ? 'הסרה מהמועדפים' : 'הוספה למועדפים', () => { toggleFav(sheet); closeSheet(); }],
+          ['התחל תחנה מהשיר', () => { const t = sheet; closeSheet(); station(t); }],
+          ['מעבר לאמן', () => { const t = sheet; closeSheet(); setFull(false); openArtist(t.artist, t.ch); }],
+          ['שיתוף', () => { share(sheet); closeSheet(); }],
+        ].map(([n, f]) => (
+          <Pressable key={n} onPress={f} style={{ paddingVertical: 12, borderTopWidth: 1, borderTopColor: c.line }}>
+            <Text style={{ color: c.fg, fontSize: 16, textAlign: 'right' }}>{n}</Text>
+          </Pressable>
+        )) : (
+          <View>
+            <TextInput value={pick.name} onChangeText={(v) => setPick({ name: v })} placeholder="פלייליסט חדש - שם" placeholderTextColor={c.sub}
+              onSubmitEditing={() => { newPlaylist(pick.name, sheet); closeSheet(); }}
+              style={[s.input, { backgroundColor: c.card, color: c.fg, textAlign: 'right', marginHorizontal: 0 }]} />
+            <Pressable onPress={() => { newPlaylist(pick.name, sheet); closeSheet(); }} style={{ paddingVertical: 10 }}><Text style={{ color: RED, fontWeight: '700', textAlign: 'right' }}>+ צור והוסף</Text></Pressable>
+            {playlists.map((p) => (
+              <Pressable key={p.id} onPress={() => { addToPlaylist(p.id, sheet); closeSheet(); }} style={{ paddingVertical: 12, borderTopWidth: 1, borderTopColor: c.line }}>
+                <Text style={{ color: c.fg, fontSize: 16, textAlign: 'right' }}>{p.name}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
       </View>
     </View>
   );
@@ -873,6 +950,7 @@ export default function App() {
         </View>
       </View>
       {fullView}
+      {sheetView}
     </View>
   );
 }
