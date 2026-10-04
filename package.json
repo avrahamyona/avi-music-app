@@ -20,6 +20,7 @@
     "react-dom": "18.3.1",
     "react-native": "0.76.9",
     "react-native-track-player": "^4.1.1",
-    "react-native-web": "~0.19.13"
+    "react-native-web": "~0.19.13",
+    "react-native-svg": "15.8.0"
   }
 }
