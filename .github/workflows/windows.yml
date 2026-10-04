@@ -1,0 +1,59 @@
+name: Windows
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'App.js'
+      - 'bus.js'
+      - 'config.js'
+      - 'player.windows.js'
+      - 'windows-native/**'
+      - '.github/workflows/windows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Create plain React Native 0.76 project
+        shell: bash
+        run: |
+          npx --yes @react-native-community/cli@15 init AviWin --version 0.76.9 --skip-install --skip-git-init --pm npm
+      - name: Install deps and react-native-windows
+        shell: bash
+        working-directory: AviWin
+        run: |
+          npm install
+          npm install react-native-windows@^0.76.0
+          npx react-native init-windows --template cpp-app --overwrite --no-telemetry
+      - name: Copy shared app code
+        shell: bash
+        run: |
+          cp App.js bus.js config.js player.windows.js AviWin/
+          cp player.native.js player.web.js AviWin/ || true
+          sed -i "s/|| 'dev')/|| '${{ github.run_number }}')/" AviWin/App.js
+          cat > AviWin/index.js <<'JS'
+          import { AppRegistry } from 'react-native';
+          import App from './App';
+          AppRegistry.registerComponent('AviWin', () => App);
+          JS
+      - name: Build (release, x64)
+        shell: pwsh
+        working-directory: AviWin
+        run: npx react-native run-windows --release --no-launch --no-deploy --arch x64 --logging --no-telemetry
+      - name: Show output
+        shell: pwsh
+        working-directory: AviWin
+        run: Get-ChildItem -Recurse -Include *.exe,*.msix,*.appx windows | Select-Object -First 30 FullName
