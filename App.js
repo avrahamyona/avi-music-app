@@ -105,15 +105,15 @@ function Card({ t, onPress, c, wide, sub }) {
 
 function Row({ t, onPress, c, active, fav, onFav, onMore }) {
   return (
-    <Pressable onPress={onPress} onLongPress={onMore} style={[s.row, active && { backgroundColor: c.card }]}>
+    <Pressable onPress={onPress} onLongPress={onMore} style={[s.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#8884' }]}>
       {t.thumb ? <Image source={{ uri: t.thumb }} style={s.thumb} /> : <View style={s.thumb} />}
-      <View style={{ flex: 1, marginHorizontal: 10 }}>
-        <Text numberOfLines={1} style={{ color: c.fg, fontWeight: '600', textAlign: 'right' }}>{t.title}</Text>
-        <Text numberOfLines={1} style={{ color: c.sub, textAlign: 'right' }}>{t.artist}</Text>
+      <View style={{ flex: 1, marginHorizontal: 12 }}>
+        <Text numberOfLines={1} style={{ color: active ? RED : c.fg, fontSize: 15, fontWeight: '500', textAlign: 'right' }}>{t.title}</Text>
+        <Text numberOfLines={1} style={{ color: c.sub, fontSize: 13, marginTop: 1, textAlign: 'right' }}>{t.artist}</Text>
       </View>
-      {!!t.dur && <Text style={{ color: c.sub, marginHorizontal: 6 }}>{fmt(t.dur)}</Text>}
-      <Pressable onPress={onFav} style={{ padding: 8 }}><Icon name={fav ? 'heartfill' : 'heart'} size={20} color={fav ? RED : c.sub} /></Pressable>
-      {!!onMore && <Pressable onPress={onMore} style={{ padding: 8 }}><Icon name="dots" size={20} color={c.sub} /></Pressable>}
+      {!!t.dur && <Text style={{ color: c.sub, fontSize: 14, marginHorizontal: 6, writingDirection: 'ltr' }}>{fmt(t.dur)}</Text>}
+      <Pressable onPress={onFav} style={{ padding: 8 }}><Icon name={fav ? 'heartfill' : 'heart'} size={18} color={fav ? RED : c.sub} /></Pressable>
+      {!!onMore && <Pressable onPress={onMore} style={{ padding: 8 }}><Icon name="dots" size={18} color={c.sub} /></Pressable>}
     </Pressable>
   );
 }
@@ -1059,8 +1059,8 @@ const s = StyleSheet.create({
   sechead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 0, marginBottom: 8 },
   theme: { padding: 6 },
   input: { margin: 12, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6 },
-  thumb: { width: 52, height: 52, borderRadius: 6, backgroundColor: '#8884' },
+  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, paddingVertical: 6 },
+  thumb: { width: 48, height: 48, borderRadius: 5, backgroundColor: '#8884' },
   player: { padding: 10, borderTopWidth: 1 },
   skip: { width: 40, height: 44, alignItems: 'center', justifyContent: 'center' },
   play: { width: 44, height: 44, borderRadius: 22, backgroundColor: RED, alignItems: 'center', justifyContent: 'center' },
