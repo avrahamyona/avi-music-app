@@ -92,11 +92,11 @@ const TABS = [
 ];
 
 function Card({ t, onPress, c, wide, sub }) {
-  const w = wide ? 280 : 150;
+  const w = wide ? 280 : 158;
   return (
-    <Pressable onPress={onPress} style={{ width: w, marginLeft: 14 }}>
-      {t.thumb ? <Image source={{ uri: t.thumb }} style={{ width: w, height: wide ? 158 : 150, borderRadius: 8, backgroundColor: c.card }} />
-        : <View style={{ width: w, height: 150, borderRadius: 8, backgroundColor: c.card }} />}
+    <Pressable onPress={onPress} style={({ pressed }) => ({ width: w, marginLeft: 14, opacity: pressed ? 0.7 : 1 })}>
+      {t.thumb ? <Image source={{ uri: t.thumb }} style={{ width: w, height: wide ? 158 : 158, borderRadius: 8, backgroundColor: c.card }} />
+        : <View style={{ width: w, height: 158, borderRadius: 8, backgroundColor: c.card }} />}
       <Text numberOfLines={1} style={{ color: c.fg, fontWeight: '600', marginTop: 6, textAlign: 'right' }}>{t.title}</Text>
       <Text numberOfLines={1} style={{ color: c.sub, fontSize: 13, textAlign: 'right' }}>{sub || t.artist}</Text>
     </Pressable>
@@ -111,7 +111,7 @@ function PlayerArt({ uri, playing, size, wide }) {
 
 function Row({ t, onPress, c, active, fav, onFav, onMore }) {
   return (
-    <Pressable onPress={onPress} onLongPress={onMore} style={[s.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#8884' }]}>
+    <Pressable onPress={onPress} onLongPress={onMore} style={({ pressed }) => [s.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#8884', opacity: pressed ? 0.6 : 1 }]}>
       {t.thumb ? <Image source={{ uri: t.thumb }} style={s.thumb} /> : <View style={s.thumb} />}
       <View style={{ flex: 1, marginHorizontal: 12 }}>
         <Text numberOfLines={1} style={{ color: active ? RED : c.fg, fontSize: 15, fontWeight: '500', textAlign: 'right' }}>{t.title}</Text>
