@@ -43,11 +43,14 @@ jobs:
         run: |
           cp App.js bus.js config.js player.windows.js AviWin/
           cp player.native.js player.web.js AviWin/ || true
-          cp windows-native/AviAudio.h AviWin/windows/AviWin/AviAudio.h
-          sed -i 's/#include "NativeModules.h"/#include "NativeModules.h"\n#include "AviAudio.h"/' AviWin/windows/AviWin/ReactPackageProvider.cpp
-          grep -n AviAudio AviWin/windows/AviWin/ReactPackageProvider.cpp
-          sed -i 's/>AviWin</>Avi Music</; s/DisplayName="AviWin"/DisplayName="Avi Music"/' AviWin/windows/AviWin/Package.appxmanifest
-          sed -i "s/|| 'dev')/|| '${{ github.run_number }}')/" AviWin/App.js
+          rp=$(find AviWin/windows -name ReactPackageProvider.cpp | head -1)
+          echo "provider: $rp"
+          cp windows-native/AviAudio.h "$(dirname "$rp")/AviAudio.h"
+          sed -i 's/#include "NativeModules.h"/#include "NativeModules.h"\n#include "AviAudio.h"/' "$rp"
+          grep -n AviAudio "$rp"
+          mf=$(find AviWin/windows -name Package.appxmanifest | head -1)
+          echo "manifest: $mf"
+          sed -i 's/>AviWin</>Avi Music</; s/DisplayName="AviWin"/DisplayName="Avi Music"/' "$mf"
           cat > AviWin/index.js <<'JS'
           import { AppRegistry } from 'react-native';
           import App from './App';
@@ -57,36 +60,9 @@ jobs:
         shell: pwsh
         working-directory: AviWin
         run: npx react-native run-windows --release --no-launch --no-deploy --arch x64 --logging --no-telemetry
-      - name: Build installer (.exe)
+      - name: Sign package and build installer (.exe)
         shell: pwsh
-        run: |
-          $pkg = Get-ChildItem -Directory AviWin/windows/AviWin.Package/AppPackages | Where-Object { $_.Name -like '*_Test' } | Select-Object -First 1
-          if (-not $pkg) { throw 'no Test package folder' }
-          Write-Host "Package folder: $($pkg.FullName)"
-          Get-ChildItem $pkg.FullName | Select-Object Name
-          choco install innosetup -y --no-progress
-          $iss = @"
-          [Setup]
-          AppName=Avi Music
-          AppVersion=0.2.0.${{ github.run_number }}
-          DefaultDirName={tmp}\AviMusicSetup
-          PrivilegesRequired=admin
-          OutputDir=out
-          OutputBaseFilename=AviMusic-Setup
-          Compression=lzma
-          SolidCompression=yes
-          DisableDirPage=yes
-          DisableProgramGroupPage=yes
-          Uninstallable=no
-          CreateAppDir=no
-          [Files]
-          Source: "$($pkg.FullName)\*"; DestDir: "{tmp}\AviMusicPkg"; Flags: recursesubdirs createallsubdirs deleteafterinstall
-          [Run]
-          Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{tmp}\AviMusicPkg\Add-AppDevPackage.ps1"" -Force"; StatusMsg: "Installing Avi Music..."; Flags: waituntilterminated
-          "@
-          Set-Content -Path AviMusic.iss -Value $iss
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" AviMusic.iss
-          Get-ChildItem out
+        run: ./windows-native/package.ps1 -Build ${{ github.run_number }}
       - uses: actions/upload-artifact@v4
         with:
           name: AviMusic-Setup
