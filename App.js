@@ -917,7 +917,7 @@ export default function App() {
     </View>
   );
   const mini = cur && (
-    <View style={{ position: 'absolute', bottom: wideScreen ? 18 : 62, alignSelf: 'center', width: wideScreen ? 520 : '94%', borderRadius: 20, backgroundColor: c.card, borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, paddingVertical: 8, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}>
+    <View style={{ position: 'absolute', bottom: wideScreen ? 18 : 78, alignSelf: 'center', width: wideScreen ? 520 : '94%', borderRadius: wideScreen ? 20 : 14, backgroundColor: c.card, borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, paddingVertical: 8, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}>
       <Pressable onPress={() => setFull(true)} style={{ flexDirection: 'row', alignItems: 'center' }}>
         {cur.thumb ? <Image source={{ uri: cur.thumb }} style={{ width: 44, height: 44, borderRadius: 6 }} /> : <View style={{ width: 44, height: 44, borderRadius: 6, backgroundColor: c.card2 }} />}
         <View style={{ flex: 1, marginHorizontal: 10 }}>
@@ -1039,13 +1039,15 @@ export default function App() {
           {content}
           {mini}
           {!wideScreen && (
-            <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.bg }}>
+            <View style={{ paddingHorizontal: 10, paddingBottom: 6, paddingTop: 4, backgroundColor: c.bg }}>
+            <View style={{ flexDirection: 'row', height: 56, borderRadius: 20, backgroundColor: c.card, borderWidth: StyleSheet.hairlineWidth, borderColor: c.line, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 }}>
               {TABS.map((x) => (
-                <Pressable key={x.k} onPress={() => nav(x.k)} style={{ flex: 1, alignItems: 'center', paddingVertical: 6 }}>
-                  <Icon name={x.i} size={22} color={tab === x.k ? RED : c.sub} />
-                  <Text style={{ color: tab === x.k ? RED : c.sub, fontSize: 11 }}>{x.t}</Text>
+                <Pressable key={x.k} onPress={() => nav(x.k)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', margin: 5, borderRadius: 15, gap: 3, backgroundColor: tab === x.k ? c.card2 : 'transparent' }}>
+                  <Icon name={x.i} size={24} color={tab === x.k ? RED : c.sub} />
+                  <Text style={{ color: tab === x.k ? RED : c.sub, fontSize: 10, fontWeight: '500' }}>{x.t}</Text>
                 </Pressable>
               ))}
+            </View>
             </View>
           )}
         </View>
