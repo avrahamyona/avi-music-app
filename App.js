@@ -390,6 +390,99 @@ function AlbumPage({ c, A, page }) {
   );
 }
 
+const lq = (s) => String(s || '').normalize('NFKC').replace(/[\u05F3\u2018\u2019\u0060\u00B4]/g, "'").replace(/[\u05F4\u201C\u201D]/g, '"')
+  .replace(/\s*[-–—]\s*(?:topic|הערוץ הרשמי|official(?: music)? (?:video|audio))\s*$/i, '')
+  .replace(/\s*\((?:official(?: music)? (?:video|audio)|audio only|lyrics?)\)\s*$/i, '').trim();
+const lkey = (s) => norm(lq(s));
+function lmatch(x, t, d) {
+  const title = lkey(t.title), artist = lkey(t.artist);
+  const xt = lkey(x.trackName || x.name), xa = lkey(x.artistName);
+  if (!title || !xt || !(xt === title || (xt.includes(title) && title.length > 6))) return false;
+  if (artist && xa && xa !== artist && !xa.includes(artist) && !artist.includes(xa)) return false;
+  if (d && x.duration && Math.abs(x.duration - d) > 8) return false;
+  return !!(x.syncedLyrics || x.plainLyrics || x.instrumental);
+}
+function parseLRC(s) {
+  const out = [];
+  const re = /\[(\d+):(\d+(?:\.\d+)?)\]/g;
+  for (const row of s.split('\n')) {
+    const txt = row.replace(re, '').trim();
+    if (!txt) continue;
+    re.lastIndex = 0;
+    let m; while ((m = re.exec(row))) out.push({ t: +m[1] * 60 + +m[2], text: txt });
+  }
+  return out.sort((a, b) => a.t - b.t);
+}
+async function lget(url) {
+  for (let i = 0; i < 2; i++) {
+    try { const r = await fetch(url); if (r.ok) return await r.json(); if (r.status !== 429 && r.status !== 503) return null; } catch (e) {}
+    await new Promise((r) => setTimeout(r, 450));
+  }
+  return null;
+}
+const lcache = new Map();
+async function fetchLyrics(t, d) {
+  const title = lq(t.title), artist = lq(t.artist);
+  const key = title + '|' + artist;
+  if (lcache.has(key)) return lcache.get(key);
+  const qs = 'track_name=' + encodeURIComponent(title) + '&artist_name=' + encodeURIComponent(artist) + (d ? '&duration=' + Math.round(d) : '');
+  let j = await lget('https://lrclib.net/api/get?' + qs);
+  if (j && lmatch(j, t, d)) { lcache.set(key, j); return j; }
+  const neutral = title.replace(/[\u05F3'\u2018\u2019\u0060\u00B4]/g, '');
+  const urls = ['https://lrclib.net/api/search?track_name=' + encodeURIComponent(title) + '&artist_name=' + encodeURIComponent(artist),
+    'https://lrclib.net/api/search?q=' + encodeURIComponent([neutral, artist].filter(Boolean).join(' '))];
+  for (const u of urls) {
+    const arr = await lget(u);
+    if (!Array.isArray(arr)) continue;
+    const m = arr.filter((x) => lmatch(x, t, d));
+    if (m.length) { j = m.sort((x, y) => Number(!!y.syncedLyrics) - Number(!!x.syncedLyrics))[0]; lcache.set(key, j); return j; }
+  }
+  return null;
+}
+function Lyrics({ c, cur, pos, dur }) {
+  const [state, setState] = useState({ load: true });
+  const ys = useRef({});
+  const sv = useRef(null);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    let live = true;
+    setState({ load: true });
+    fetchLyrics(cur, cur.dur || dur).then((j) => {
+      if (!live) return;
+      if (!j) return setState({ none: true });
+      if (j.instrumental) return setState({ instr: true });
+      const lines = j.syncedLyrics ? parseLRC(j.syncedLyrics) : [];
+      setState(lines.length ? { lines } : { plain: String(j.plainLyrics || '').split('\n') });
+    }).catch(() => live && setState({ none: true }));
+    return () => { live = false; };
+  }, [cur.id, tick]);
+  let idx = 0;
+  if (state.lines) for (let i = 0; i < state.lines.length; i++) { if (state.lines[i].t <= pos + 0.2) idx = i; else break; }
+  useEffect(() => {
+    const y = ys.current[idx];
+    if (state.lines && sv.current && y !== undefined) sv.current.scrollTo({ y: Math.max(0, y - 120), animated: true });
+  }, [idx, state.lines]);
+  if (state.load) return <ActivityIndicator color={RED} style={{ margin: 20 }} />;
+  if (state.instr) return <Text style={{ color: c.sub, textAlign: 'center', margin: 20 }}>שיר אינסטרומנטלי</Text>;
+  if (state.none) return (
+    <View style={{ alignItems: 'center', margin: 20 }}>
+      <Text style={{ color: c.sub, textAlign: 'center' }}>אין מילים מאומתות לשיר הזה כרגע</Text>
+      <Pressable onPress={() => setTick((n) => n + 1)} style={{ marginTop: 8 }}><Text style={{ color: RED }}>נסה שוב</Text></Pressable>
+    </View>
+  );
+  return (
+    <ScrollView ref={sv} style={{ height: 300, width: '100%' }}>
+      {(state.lines ? state.lines.map((l) => l.text) : state.plain).map((tx, i) => (
+        <Text key={i} onLayout={(e) => { ys.current[i] = e.nativeEvent.layout.y; }}
+          onPress={state.lines ? () => player.seek(state.lines[i].t) : undefined}
+          style={{ color: state.lines ? (i === idx ? c.fg : c.sub) : c.fg, fontSize: state.lines && i === idx ? 24 : 20, fontWeight: '800', textAlign: 'right', paddingVertical: 6, opacity: state.lines && i < idx ? 0.5 : 1 }}>
+          {tx || ' '}
+        </Text>
+      ))}
+    </ScrollView>
+  );
+}
+
 export default function App() {
   const system = useColorScheme();
   const { width } = useWindowDimensions();
@@ -429,6 +522,7 @@ export default function App() {
   const [pos, setPos] = useState(0);
   const [dur, setDur] = useState(0);
   const [full, setFull] = useState(false);
+  const [showLyr, setShowLyr] = useState(false);
   const [history, setHistory] = useState([]);
   const [favs, setFavs] = useState([]);
   const gen = useRef(0);
@@ -564,7 +658,11 @@ export default function App() {
         {!!status && <Text style={{ color: c.sub, marginTop: 6, textAlign: 'center' }}>{status}</Text>}
         <View style={{ width: '100%', maxWidth: 420, marginTop: 16 }}>{bar}</View>
         <View style={{ marginTop: 6 }}>{ctl(true)}</View>
-        <Pressable onPress={() => toggleFav(cur)} style={{ padding: 10 }}><Text style={{ color: isFav(cur) ? RED : c.sub, fontSize: 26 }}>{isFav(cur) ? '♥' : '♡'}</Text></Pressable>
+        <View style={{ flexDirection: 'row' }}>
+          <Pressable onPress={() => toggleFav(cur)} style={{ padding: 10 }}><Text style={{ color: isFav(cur) ? RED : c.sub, fontSize: 26 }}>{isFav(cur) ? '♥' : '♡'}</Text></Pressable>
+          <Pressable onPress={() => setShowLyr((v) => !v)} style={{ padding: 10 }}><Text style={{ color: showLyr ? RED : c.sub, fontSize: 18, fontWeight: '700' }}>מילים</Text></Pressable>
+        </View>
+        {showLyr && <View style={{ width: '100%', maxWidth: 520 }}><Lyrics c={c} cur={cur} pos={pos} dur={dur} /></View>}
         <Text style={[s.h2, { color: c.fg, alignSelf: 'flex-end', marginTop: 10 }]}>הבא בתור</Text>
         <View style={{ width: '100%' }}>
           {queue.slice(Math.max(0, queue.findIndex((t) => t.id === cur.id) + 1), 40).map((t) => <Row key={t.id} t={t} c={c} active={false} fav={isFav(t)} onFav={() => toggleFav(t)} onPress={() => play(t)} />)}
