@@ -1,5 +1,6 @@
-build/
-.dart_tool/
-windows/
-.flutter-plugins*
-pubspec.lock
+node_modules/
+dist/
+android/
+ios/
+.expo/
+package-lock.json
