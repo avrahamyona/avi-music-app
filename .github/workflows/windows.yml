@@ -43,6 +43,7 @@ jobs:
         run: |
           cp App.js bus.js config.js player.windows.js AviWin/
           cp player.native.js player.web.js AviWin/ || true
+          sed -i "s/|| 'dev'/|| '${{ github.run_number }}'/" AviWin/App.js
           find AviWin/windows -maxdepth 3 -not -path '*/node_modules/*' | head -80
           grep -rn "AddAttributedModules\|ReactPackageProvider" AviWin/windows --include=*.cpp --include=*.h -l | head
           rp=$(grep -rl "AddAttributedModules" AviWin/windows --include=*.cpp | head -1)
