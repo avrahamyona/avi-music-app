@@ -27,7 +27,7 @@ jobs:
       - run: npx expo install --fix
       - name: Generate app icon
         run: |
-          pip3 install pillow || python3 -m pip install pillow
+          python3 -m pip install --break-system-packages pillow
           python3 - <<'PY'
           from PIL import Image, ImageDraw
           import os
