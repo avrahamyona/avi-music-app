@@ -239,18 +239,71 @@ function Radio({ c, A }) {
 }
 function Library({ c, A }) {
   const [sec, setSec] = useState('fav');
+  const [url, setUrl] = useState('');
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
   const list = sec === 'fav' ? A.favs : A.history;
+  const importPl = async () => {
+    const m = /[?&]list=([A-Za-z0-9_-]{10,100})/.exec(url) || /^([A-Za-z0-9_-]{10,100})$/.exec(url.trim());
+    if (!m) { setMsg('הדבק קישור לפלייליסט ציבורי של יוטיוב (עם list=)'); return; }
+    setBusy(true); setMsg('');
+    try {
+      const j = await wjson('/playlist/' + m[1]);
+      const tracks = clean((j.tracks || []).map((t) => ({ id: t.id, title: t.title, artist: String(t.artist || '').replace(/ - Topic$/i, ''), thumb: ytThumb(t.id), dur: t.dur || 0, ch: t.ch || '' })));
+      if (!tracks.length) setMsg('הפלייליסט ריק או פרטי');
+      else { A.addPlaylist({ id: m[1], name: j.title || 'פלייליסט', tracks }); setUrl(''); setMsg('יובאו ' + tracks.length + ' שירים' + (j.skipped ? ' (' + j.skipped + ' לא זמינים דולגו)' : '')); }
+    } catch (e) { setMsg('הייבוא נכשל. ייתכן שהפלייליסט פרטי.'); }
+    setBusy(false);
+  };
+  const stats = A.stats || {};
+  const month = new Date().toISOString().slice(0, 7);
+  const top = Object.entries(stats.artists || {}).sort((x, y) => y[1] - x[1]).slice(0, 10);
   return (
     <View>
-      <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginTop: 8 }}>
-        {[['fav', 'מועדפים'], ['hist', 'הושמעו לאחרונה']].map(([k, n]) => (
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, marginTop: 8 }}>
+        {[['fav', 'מועדפים'], ['hist', 'הושמעו לאחרונה'], ['pls', 'פלייליסטים'], ['stats', 'סטטיסטיקה']].map(([k, n]) => (
           <Pressable key={k} onPress={() => setSec(k)} style={{ paddingVertical: 6, paddingHorizontal: 14, borderRadius: 16, marginLeft: 8, backgroundColor: sec === k ? RED : c.card }}>
             <Text style={{ color: sec === k ? '#fff' : c.fg, fontWeight: '600' }}>{n}</Text>
           </Pressable>
         ))}
-      </View>
-      {!list.length && <Text style={{ color: c.sub, textAlign: 'center', marginTop: 40 }}>{sec === 'fav' ? 'עוד אין מועדפים. הקש על הלב ליד שיר.' : 'עוד לא הושמע כלום.'}</Text>}
-      {list.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onPress={() => A.play(t, list)} />)}
+      </ScrollView>
+      {(sec === 'fav' || sec === 'hist') && !list.length && <Text style={{ color: c.sub, textAlign: 'center', marginTop: 40 }}>{sec === 'fav' ? 'עוד אין מועדפים. הקש על הלב ליד שיר.' : 'עוד לא הושמע כלום.'}</Text>}
+      {(sec === 'fav' || sec === 'hist') && list.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onPress={() => A.play(t, list)} />)}
+      {sec === 'pls' && (
+        <View>
+          <TextInput value={url} onChangeText={setUrl} onSubmitEditing={importPl} placeholder="הדבק קישור לפלייליסט ציבורי של יוטיוב" placeholderTextColor={c.sub}
+            style={[s.input, { backgroundColor: c.card, color: c.fg, textAlign: 'right' }]} />
+          <Pressable onPress={importPl} disabled={busy} style={{ backgroundColor: RED, borderRadius: 20, alignSelf: 'center', paddingHorizontal: 24, paddingVertical: 8 }}>
+            <Text style={{ color: '#fff', fontWeight: '700' }}>{busy ? 'מייבא...' : 'ייבוא פלייליסט'}</Text>
+          </Pressable>
+          {!!msg && <Text style={{ color: c.sub, textAlign: 'center', margin: 10 }}>{msg}</Text>}
+          {A.playlists.map((p) => (
+            <Pressable key={p.id} onPress={() => A.open({ title: p.name, items: p.tracks })} style={s.row}>
+              {p.tracks[0] && p.tracks[0].thumb ? <Image source={{ uri: p.tracks[0].thumb }} style={s.thumb} /> : <View style={s.thumb} />}
+              <View style={{ flex: 1, marginHorizontal: 10 }}>
+                <Text numberOfLines={1} style={{ color: c.fg, fontWeight: '600', textAlign: 'right' }}>{p.name}</Text>
+                <Text style={{ color: c.sub, textAlign: 'right' }}>{p.tracks.length + ' שירים'}</Text>
+              </View>
+              <Pressable onPress={() => A.removePlaylist(p.id)} style={{ padding: 8 }}><Text style={{ color: c.sub, fontSize: 16 }}>✕</Text></Pressable>
+            </Pressable>
+          ))}
+        </View>
+      )}
+      {sec === 'stats' && (
+        <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
+          <Text style={{ color: c.fg, fontSize: 18, fontWeight: '700', textAlign: 'right' }}>{'השמעות מאז ההתקנה: ' + (stats.total || 0)}</Text>
+          <Text style={{ color: c.sub, textAlign: 'right', marginTop: 4 }}>{'החודש (' + month + '): ' + ((stats.months || {})[month] || 0)}</Text>
+          <Text style={[s.h2, { color: c.fg, marginHorizontal: 0, marginTop: 18 }]}>האמנים המושמעים ביותר</Text>
+          {!top.length && <Text style={{ color: c.sub, textAlign: 'right', marginTop: 8 }}>עוד אין נתונים.</Text>}
+          {top.map(([n, k], i) => (
+            <View key={n} style={{ flexDirection: 'row', paddingVertical: 6 }}>
+              <Text style={{ color: c.sub, width: 28, textAlign: 'right' }}>{i + 1}</Text>
+              <Text style={{ color: c.fg, flex: 1, textAlign: 'right', marginHorizontal: 8 }}>{n}</Text>
+              <Text style={{ color: c.sub }}>{k}</Text>
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -444,6 +497,7 @@ function Lyrics({ c, cur, pos, dur }) {
   const ys = useRef({});
   const sv = useRef(null);
   const [tick, setTick] = useState(0);
+  const [mode, setMode] = useState('sync');
   useEffect(() => {
     let live = true;
     setState({ load: true });
@@ -460,8 +514,8 @@ function Lyrics({ c, cur, pos, dur }) {
   if (state.lines) for (let i = 0; i < state.lines.length; i++) { if (state.lines[i].t <= pos + 0.2) idx = i; else break; }
   useEffect(() => {
     const y = ys.current[idx];
-    if (state.lines && sv.current && y !== undefined) sv.current.scrollTo({ y: Math.max(0, y - 120), animated: true });
-  }, [idx, state.lines]);
+    if (state.lines && mode === 'sync' && sv.current && y !== undefined) sv.current.scrollTo({ y: Math.max(0, y - 120), animated: true });
+  }, [idx, state.lines, mode]);
   if (state.load) return <ActivityIndicator color={RED} style={{ margin: 20 }} />;
   if (state.instr) return <Text style={{ color: c.sub, textAlign: 'center', margin: 20 }}>שיר אינסטרומנטלי</Text>;
   if (state.none) return (
@@ -470,16 +524,38 @@ function Lyrics({ c, cur, pos, dur }) {
       <Pressable onPress={() => setTick((n) => n + 1)} style={{ marginTop: 8 }}><Text style={{ color: RED }}>נסה שוב</Text></Pressable>
     </View>
   );
+  const texts = state.lines ? state.lines.map((l) => l.text) : state.plain;
+  const modes = state.lines ? [['sync', 'מסונכרן'], ['karaoke', 'קריוקי'], ['plain', 'טקסט']] : [];
+  const m = state.lines ? mode : 'plain';
   return (
-    <ScrollView ref={sv} style={{ height: 300, width: '100%' }}>
-      {(state.lines ? state.lines.map((l) => l.text) : state.plain).map((tx, i) => (
-        <Text key={i} onLayout={(e) => { ys.current[i] = e.nativeEvent.layout.y; }}
-          onPress={state.lines ? () => player.seek(state.lines[i].t) : undefined}
-          style={{ color: state.lines ? (i === idx ? c.fg : c.sub) : c.fg, fontSize: state.lines && i === idx ? 24 : 20, fontWeight: '800', textAlign: 'right', paddingVertical: 6, opacity: state.lines && i < idx ? 0.5 : 1 }}>
-          {tx || ' '}
-        </Text>
-      ))}
-    </ScrollView>
+    <View style={{ width: '100%' }}>
+      {!!modes.length && (
+        <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 6 }}>
+          {modes.map(([k, n]) => (
+            <Pressable key={k} onPress={() => setMode(k)} style={{ paddingVertical: 4, paddingHorizontal: 12, borderRadius: 14, marginHorizontal: 4, backgroundColor: mode === k ? RED : c.card }}>
+              <Text style={{ color: mode === k ? '#fff' : c.fg, fontWeight: '600' }}>{n}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+      {m === 'karaoke' ? (
+        <View style={{ height: 300, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12 }}>
+          <Text style={{ color: c.sub, fontSize: 18, textAlign: 'center', opacity: 0.6 }}>{texts[idx - 1] || ' '}</Text>
+          <Text style={{ color: RED, fontSize: 34, fontWeight: '800', textAlign: 'center', marginVertical: 14 }}>{texts[idx] || ' '}</Text>
+          <Text style={{ color: c.sub, fontSize: 18, textAlign: 'center', opacity: 0.6 }}>{texts[idx + 1] || ' '}</Text>
+        </View>
+      ) : (
+        <ScrollView ref={sv} style={{ height: 300, width: '100%' }}>
+          {texts.map((tx, i) => (
+            <Text key={i} onLayout={(e) => { ys.current[i] = e.nativeEvent.layout.y; }}
+              onPress={state.lines ? () => player.seek(state.lines[i].t) : undefined}
+              style={{ color: m === 'sync' ? (i === idx ? c.fg : c.sub) : c.fg, fontSize: m === 'sync' && i === idx ? 24 : 20, fontWeight: '800', textAlign: 'right', paddingVertical: 6, opacity: m === 'sync' && i < idx ? 0.5 : 1 }}>
+              {tx || ' '}
+            </Text>
+          ))}
+        </ScrollView>
+      )}
+    </View>
   );
 }
 
@@ -525,6 +601,8 @@ export default function App() {
   const [showLyr, setShowLyr] = useState(false);
   const [history, setHistory] = useState([]);
   const [favs, setFavs] = useState([]);
+  const [playlists, setPlaylists] = useState([]);
+  const [stats, setStats] = useState({});
   const gen = useRef(0);
   const barW = useRef(1);
   const queueRef = useRef([]);
@@ -536,6 +614,8 @@ export default function App() {
   useEffect(() => {
     store.get('history', []).then(setHistory);
     store.get('favs', []).then(setFavs);
+    store.get('playlists', []).then(setPlaylists);
+    store.get('stats', {}).then(setStats);
     player.init().catch(() => {});
     const off = player.on((st) => {
       if (st.playing !== undefined) setPlaying(st.playing);
@@ -563,6 +643,12 @@ export default function App() {
     const g = ++gen.current;
     setCur(t); curRef.current = t; setStatus('טוען...'); setPos(0); setDur(0);
     setHistory((h) => { const n = [t, ...h.filter((x) => x.id !== t.id)].slice(0, 60); store.set('history', n); return n; });
+    setStats((st) => {
+      const mo = new Date().toISOString().slice(0, 7);
+      const an = String(t.artist || '').replace(/ - Topic$/i, '');
+      const n = { total: (st.total || 0) + 1, months: { ...(st.months || {}), [mo]: ((st.months || {})[mo] || 0) + 1 }, artists: { ...(st.artists || {}), [an]: ((st.artists || {})[an] || 0) + 1 } };
+      store.set('stats', n); return n;
+    });
     for (let i = 0; i < 3; i++) {
       if (g !== gen.current) return;
       if (await player.load(t)) { if (g === gen.current) setStatus(''); return; }
@@ -572,11 +658,13 @@ export default function App() {
   playRef.current = play;
   const isFav = (t) => favs.some((x) => x.id === t.id);
   const toggleFav = (t) => setFavs((f) => { const n = f.some((x) => x.id === t.id) ? f.filter((x) => x.id !== t.id) : [t, ...f]; store.set('favs', n); return n; });
+  const addPlaylist = (p) => setPlaylists((x) => { const n = [p, ...x.filter((y) => y.id !== p.id)]; store.set('playlists', n); return n; });
+  const removePlaylist = (id) => setPlaylists((x) => { const n = x.filter((y) => y.id !== id); store.set('playlists', n); return n; });
   const open = (p) => setPages((x) => [...x, p]);
   const back = () => setPages((x) => x.slice(0, -1));
   const openArtist = (name, ch) => open({ kind: 'artist', title: String(name).replace(/ - Topic$/i, ''), ch: ch || '' });
   const openAlbum = (al) => open({ kind: 'album', title: al.title, plId: al.plId, thumb: al.thumb, artist: al.artistName || '' });
-  const A = { cur, play, isFav, toggleFav, open, back, openArtist, openAlbum, history, favs };
+  const A = { cur, play, isFav, toggleFav, open, back, openArtist, openAlbum, history, favs, playlists, stats, addPlaylist, removePlaylist };
 
   const seek = (e) => {
     if (!dur) return;
