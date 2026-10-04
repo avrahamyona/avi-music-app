@@ -835,6 +835,7 @@ export default function App() {
   const addPlaylist = (p) => setPlaylists((x) => { const n = [p, ...x.filter((y) => y.id !== p.id)]; store.set('playlists', n); return n; });
   const removePlaylist = (id) => setPlaylists((x) => { const n = x.filter((y) => y.id !== id); store.set('playlists', n); return n; });
   const queueNext = (t) => setQueue((q) => { const cc = curRef.current; const base = q.filter((x) => x.id !== t.id); const i = cc ? base.findIndex((x) => x.id === cc.id) : -1; base.splice(i + 1, 0, t); queueRef.current = base; return base; });
+  const moveQ = (id, d) => setQueue((q) => { const i = q.findIndex((x) => x.id === id); const j = i + d; if (i < 0 || j < 0 || j >= q.length) return q; const n = [...q]; const tmp = n[i]; n[i] = n[j]; n[j] = tmp; queueRef.current = n; return n; });
   const queueLast = (t) => setQueue((q) => { const n = [...q.filter((x) => x.id !== t.id), t]; queueRef.current = n; return n; });
   const addToPlaylist = (pid, t) => setPlaylists((x) => { const n = x.map((p) => (p.id === pid && !p.tracks.some((y) => y.id === t.id) ? { ...p, tracks: [...p.tracks, t] } : p)); store.set('playlists', n); return n; });
   const newPlaylist = (name, t) => setPlaylists((x) => { const p = { id: 'u' + Date.now(), name: name || 'פלייליסט חדש', tracks: t ? [t] : [], mine: true }; const n = [p, ...x]; store.set('playlists', n); return n; });
@@ -954,7 +955,7 @@ export default function App() {
         {showLyr && <View style={{ width: '100%', maxWidth: 520 }}><Lyrics c={c} cur={cur} pos={pos} dur={dur} /></View>}
         <Text style={[s.h2, { color: c.fg, alignSelf: 'flex-end', marginTop: 10 }]}>הבא בתור</Text>
         <View style={{ width: '100%' }}>
-          {queue.slice(Math.max(0, queue.findIndex((t) => t.id === cur.id) + 1), 40).map((t) => <Row key={t.id} t={t} c={c} active={false} fav={isFav(t)} onFav={() => toggleFav(t)} onMore={() => setSheet(t)} onPress={() => play(t)} />)}
+          {queue.slice(Math.max(0, queue.findIndex((t) => t.id === cur.id) + 1), 40).map((t) => <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center' }}><View style={{ flex: 1 }}><Row t={t} c={c} active={false} fav={isFav(t)} onFav={() => toggleFav(t)} onMore={() => setSheet(t)} onPress={() => play(t)} /></View><View><Pressable onPress={() => moveQ(t.id, -1)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>▲</Text></Pressable><Pressable onPress={() => moveQ(t.id, 1)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>▼</Text></Pressable></View></View>)}
         </View>
       </ScrollView>
       </View>
