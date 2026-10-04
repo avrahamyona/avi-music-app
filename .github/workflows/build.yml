@@ -28,6 +28,19 @@ jobs:
           java-version: 17
       - run: npm install
       - run: npx expo install --fix
+      - name: Generate app icon
+        run: |
+          pip install pillow
+          python3 - <<'PY'
+          from PIL import Image, ImageDraw
+          import os
+          os.makedirs('assets', exist_ok=True)
+          im = Image.new('RGBA', (1024, 1024), (250, 45, 72, 255))
+          d = ImageDraw.Draw(im)
+          d.ellipse((212, 212, 812, 812), fill=(255, 255, 255, 255))
+          d.polygon([(420, 360), (420, 664), (690, 512)], fill=(250, 45, 72, 255))
+          im.save('assets/icon.png')
+          PY
       - name: Export web
         run: npx expo export -p web
       - name: Zip web
