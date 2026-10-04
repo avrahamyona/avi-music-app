@@ -12,10 +12,21 @@ try {
   $cer = Join-Path $here 'AviMusic.cer'
   Import-Certificate -FilePath $cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople | Out-Null
   Write-Host 'Certificate trusted'
-  $deps = @(Get-ChildItem (Join-Path $here 'deps') -Filter *.appx -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  $need = @()
+  foreach ($f in @(Get-ChildItem (Join-Path $here 'deps') -Filter *.appx -ErrorAction SilentlyContinue)) {
+    try {
+      $z = [IO.Compression.ZipFile]::OpenRead($f.FullName)
+      $e = $z.Entries | Where-Object { $_.FullName -eq 'AppxManifest.xml' }
+      $r = New-Object IO.StreamReader($e.Open()); $x = [xml]$r.ReadToEnd(); $r.Close(); $z.Dispose()
+      $nm = $x.Package.Identity.Name; $ver = [version]$x.Package.Identity.Version
+      $have = Get-AppxPackage -Name $nm -ErrorAction SilentlyContinue | Where-Object { [version]$_.Version -ge $ver }
+      if ($have) { Write-Host "Dependency $nm already installed, skipping" } else { Write-Host "Dependency $nm needed"; $need += $f.FullName }
+    } catch { Write-Host "Could not inspect $($f.Name): $($_.Exception.Message)" }
+  }
   $msix = Join-Path $here $cfg.msix
-  if ($deps.Count -gt 0) { Add-AppxPackage -Path $msix -DependencyPath $deps -ForceUpdateFromAnyVersion }
-  else { Add-AppxPackage -Path $msix -ForceUpdateFromAnyVersion }
+  Get-AppxPackage -Name $cfg.name -ErrorAction SilentlyContinue | Remove-AppxPackage -ErrorAction SilentlyContinue
+  if ($need.Count -gt 0) { Add-AppxPackage -Path $msix -DependencyPath $need } else { Add-AppxPackage -Path $msix }
   $pkg = Get-AppxPackage -Name $cfg.name
   if (-not $pkg) { throw 'Package did not register after install.' }
   $aumid = "shell:AppsFolder\$($pkg.PackageFamilyName)!$($cfg.appId)"
