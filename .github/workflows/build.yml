@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: build
+  cancel-in-progress: true
+
 jobs:
   android-and-web:
     runs-on: ubuntu-latest
@@ -36,8 +40,8 @@ jobs:
         run: cp android/app/build/outputs/apk/release/app-release.apk AviMusic.apk
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: build-${{ github.run_number }}
-          name: Avi Music build ${{ github.run_number }}
+          tag_name: app-${{ github.run_number }}
+          name: Avi Music app ${{ github.run_number }}
           files: |
             AviMusic.apk
             AviMusic-web.zip
