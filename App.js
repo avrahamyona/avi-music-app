@@ -145,13 +145,17 @@ function Shelf({ title, query, c, A, wide, rows, limit = 12, hideIfEmpty }) {
   );
 }
 
-function Hero({ title, kicker, img, grad, onPress }) {
+function Hero({ title, kicker, desc, img, grad, onPress }) {
   return (
-    <Pressable onPress={onPress} style={{ width: 300, height: 190, marginLeft: 14, borderRadius: 14, overflow: 'hidden', backgroundColor: grad[0] }}>
-      {!!img && <Image source={{ uri: img }} style={{ position: 'absolute', width: 300, height: 190, opacity: 0.55 }} />}
+    <Pressable onPress={onPress} style={{ width: 270, height: 320, marginLeft: 14, borderRadius: 16, overflow: 'hidden', backgroundColor: grad[0] }}>
+      {!!img && <Image source={{ uri: img }} style={{ position: 'absolute', width: 270, height: 320 }} />}
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 110, backgroundColor: 'rgba(0,0,0,0.38)' }} />
       <View style={{ padding: 14, flex: 1, justifyContent: 'space-between' }}>
-        <Text style={{ color: '#fff', opacity: 0.85, fontSize: 12, fontWeight: '700', textAlign: 'right' }}>{kicker}</Text>
-        <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800', textAlign: 'right' }}>{title}</Text>
+        <Text numberOfLines={3} style={{ color: '#fff', fontSize: 28, fontWeight: '800', textAlign: 'right' }}>{title}</Text>
+        <View>
+          <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700', textAlign: 'right' }}>{kicker}</Text>
+          {!!desc && <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, textAlign: 'right' }}>{desc}</Text>}
+        </View>
       </View>
     </Pressable>
   );
@@ -168,7 +172,7 @@ function Home({ c, A }) {
           <Text style={[s.h2, { color: c.fg, marginHorizontal: 16, textAlign: 'right' }]}>בחירות מובילות עבורך</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
             {seeds.map((a, i) => (
-              <Hero key={a} title={'המיקס של ' + a} kicker="במיוחד עבורך" grad={GRADS[i % GRADS.length]}
+              <Hero key={a} title={'שירים של ' + a} kicker="במיוחד עבורך" desc={'עוד שירים של ' + a} grad={GRADS[i % GRADS.length]}
                 img={byArtist(a) && byArtist(a).thumb} onPress={() => A.openArtist(a, byArtist(a) && byArtist(a).ch)} />
             ))}
           </ScrollView>
@@ -720,8 +724,8 @@ export default function App() {
   const [override, setOverride] = useState(null);
   const dark = (override || system) === 'dark';
   const c = dark
-    ? { bg: '#000', fg: '#fff', sub: '#9a9aa0', card: '#1c1c1e', line: '#2c2c2e' }
-    : { bg: '#fff', fg: '#111', sub: '#6e6e73', card: '#f2f2f7', line: '#e5e5ea' };
+    ? { bg: '#111114', fg: '#fff', sub: 'rgba(235,235,245,0.6)', card: '#252529', card2: '#303035', line: 'rgba(255,255,255,0.13)', side: '#1a1a1e' }
+    : { bg: '#ffffff', fg: '#000', sub: 'rgba(60,60,67,0.6)', card: '#f2f2f4', card2: '#e9e9eb', line: 'rgba(0,0,0,0.08)', side: '#fafafa' };
 
   const [upd, setUpd] = useState(null);
   useEffect(() => {
@@ -865,7 +869,8 @@ export default function App() {
     </View>
   );
   const content = (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 110, alignItems: 'center' }}>
+      <View style={{ width: '100%', maxWidth: wideScreen ? 940 : undefined }}>
       {!!upd && (
         <Pressable onPress={() => Linking.openURL(upd.url)} style={{ backgroundColor: '#1db954', padding: 10, margin: 12, borderRadius: 10 }}>
           <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '700' }}>{'גרסה חדשה v' + upd.n + ' זמינה - הקש להורדה'}</Text>
@@ -881,6 +886,7 @@ export default function App() {
           {tab === 'search' && <SearchTab c={c} A={A} />}
         </View>
       )}
+      </View>
     </ScrollView>
   );
 
@@ -903,23 +909,27 @@ export default function App() {
     </View>
   );
   const mini = cur && (
-    <View style={[s.player, { borderTopColor: c.line, backgroundColor: c.bg }]}>
+    <View style={{ position: 'absolute', bottom: wideScreen ? 18 : 62, alignSelf: 'center', width: wideScreen ? 520 : '94%', borderRadius: 20, backgroundColor: c.card, borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, paddingVertical: 8, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}>
       <Pressable onPress={() => setFull(true)} style={{ flexDirection: 'row', alignItems: 'center' }}>
-        {cur.thumb ? <Image source={{ uri: cur.thumb }} style={s.thumb} /> : <View style={s.thumb} />}
+        {cur.thumb ? <Image source={{ uri: cur.thumb }} style={{ width: 44, height: 44, borderRadius: 6 }} /> : <View style={{ width: 44, height: 44, borderRadius: 6, backgroundColor: c.card2 }} />}
         <View style={{ flex: 1, marginHorizontal: 10 }}>
           <Text numberOfLines={1} style={{ color: c.fg, fontWeight: '600', textAlign: 'right' }}>{cur.title}</Text>
-          <Text numberOfLines={1} style={{ color: c.sub, textAlign: 'right' }}>{status || cur.artist}</Text>
+          <Text numberOfLines={1} style={{ color: c.sub, fontSize: 13, textAlign: 'right' }}>{status || cur.artist}</Text>
         </View>
-        {ctl(false)}
+        <View style={{ flexDirection: 'row', alignItems: 'center', direction: 'ltr' }}>
+          <Pressable onPress={() => setSheet(cur)} style={{ padding: 8 }}><Text style={{ color: c.fg, fontSize: 18 }}>⋯</Text></Pressable>
+          <Pressable onPress={() => go(-1)} style={{ padding: 8 }}><Text style={{ color: c.fg, fontSize: 18 }}>⏮</Text></Pressable>
+          <Pressable onPress={() => player.toggle()} style={{ padding: 8 }}><Text style={{ color: c.fg, fontSize: 20 }}>{playing ? '❚❚' : '▶'}</Text></Pressable>
+          <Pressable onPress={() => go(1)} style={{ padding: 8 }}><Text style={{ color: c.fg, fontSize: 18 }}>⏭</Text></Pressable>
+        </View>
       </Pressable>
-      {bar}
     </View>
   );
 
   const fullView = full && cur && (
     <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: wideScreen ? 'rgba(0,0,0,0.55)' : c.bg, alignItems: 'center', justifyContent: 'center' }}>
       {wideScreen && <Pressable onPress={() => setFull(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} />}
-      <View style={{ width: wideScreen ? 560 : '100%', height: '100%', maxHeight: wideScreen ? '92%' : '100%', backgroundColor: c.bg, borderRadius: wideScreen ? 18 : 0, padding: 20, paddingTop: Platform.OS === 'web' || Platform.OS === 'windows' || wideScreen ? 20 : 48 }}>
+      <View style={{ width: wideScreen ? 500 : '100%', height: '100%', maxHeight: wideScreen ? 790 : '100%', backgroundColor: c.bg, borderRadius: wideScreen ? 24 : 0, borderWidth: wideScreen ? 1 : 0, borderColor: c.line, padding: 20, paddingTop: Platform.OS === 'web' || Platform.OS === 'windows' || wideScreen ? 20 : 48 }}>
       <Pressable onPress={() => setFull(false)} style={{ padding: 8 }}><Text style={{ color: c.sub, fontSize: 22, textAlign: 'center' }}>⌄</Text></Pressable>
       <ScrollView contentContainerStyle={{ alignItems: 'center' }}>
         {cur.thumb ? <Image source={{ uri: cur.thumb }} style={{ width: 280, height: 280, borderRadius: 14, marginTop: 10 }} /> : null}
@@ -996,13 +1006,13 @@ export default function App() {
       <StatusBar barStyle={dark ? 'light-content' : 'dark-content'} />
       <View style={{ flex: 1, flexDirection: wideScreen ? 'row' : 'column' }}>
         {wideScreen && (
-          <View style={{ width: 230, backgroundColor: c.card, paddingTop: 24, paddingHorizontal: 12 }}>
+          <View style={{ width: 230, backgroundColor: c.side, borderLeftWidth: 1, borderLeftColor: c.line, paddingTop: 24, paddingHorizontal: 12 }}>
             <Text style={[s.title, { color: RED, marginBottom: 6 }]}>Avi Music</Text>
             <View style={{ marginBottom: 14 }}>{Badge}</View>
             {TABS.map((x) => (
-              <Pressable key={x.k} onPress={() => nav(x.k)} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 10, borderRadius: 8, backgroundColor: tab === x.k ? c.line : 'transparent' }}>
+              <Pressable key={x.k} onPress={() => nav(x.k)} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 10, borderRadius: 10, backgroundColor: tab === x.k ? c.card2 : 'transparent' }}>
                 <Text style={{ color: tab === x.k ? RED : c.fg, fontSize: 18, width: 28 }}>{x.i}</Text>
-                <Text style={{ color: tab === x.k ? RED : c.fg, fontSize: 16, fontWeight: '600' }}>{x.t}</Text>
+                <Text style={{ color: tab === x.k ? RED : c.sub, fontSize: 16, fontWeight: '600' }}>{x.t}</Text>
               </Pressable>
             ))}
             <Pressable onPress={() => setOverride(dark ? 'light' : 'dark')} style={{ padding: 10, marginTop: 'auto' }}>
@@ -1042,7 +1052,7 @@ const s = StyleSheet.create({
   root: { flex: 1, paddingTop: Platform.OS === 'web' || Platform.OS === 'windows' ? 0 : 36 },
   top: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, gap: 10 },
   title: { fontSize: 24, fontWeight: '800', flex: 1, textAlign: 'right' },
-  large: { fontSize: 32, fontWeight: '800', paddingHorizontal: 16, paddingTop: 14, textAlign: 'right' },
+  large: { fontSize: 34, fontWeight: '800', paddingHorizontal: 16, paddingTop: 36, paddingBottom: 6, letterSpacing: -0.5, textAlign: 'right' },
   h2: { fontSize: 21, fontWeight: '700', marginHorizontal: 16, textAlign: 'right' },
   sechead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 0, marginBottom: 8 },
   theme: { padding: 6 },
