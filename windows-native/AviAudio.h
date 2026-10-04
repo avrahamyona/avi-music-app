@@ -4,6 +4,9 @@
 #include <winrt/Windows.Media.h>
 #include <winrt/Windows.Media.Core.h>
 #include <winrt/Windows.Media.Playback.h>
+#include <winrt/Windows.Storage.h>
+#include <fstream>
+#include <iterator>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -57,6 +60,25 @@ struct AviAudio {
       if (!m_player) return;
       m_player.PlaybackSession().Position(std::chrono::duration_cast<winrt::Windows::Foundation::TimeSpan>(
           std::chrono::duration<double>(sec)));
+    } catch (...) {}
+  }
+
+  REACT_METHOD(GetItem, L"getItem")
+  void GetItem(std::string key, winrt::Microsoft::ReactNative::ReactPromise<std::string> &&result) noexcept {
+    try {
+      auto p = winrt::to_string(winrt::Windows::Storage::ApplicationData::Current().LocalFolder().Path()) + "\\avi-" + key + ".json";
+      std::ifstream f(p, std::ios::binary);
+      std::string s((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+      result.Resolve(s);
+    } catch (...) { result.Resolve(std::string()); }
+  }
+
+  REACT_METHOD(SetItem, L"setItem")
+  void SetItem(std::string key, std::string value) noexcept {
+    try {
+      auto p = winrt::to_string(winrt::Windows::Storage::ApplicationData::Current().LocalFolder().Path()) + "\\avi-" + key + ".json";
+      std::ofstream f(p, std::ios::binary | std::ios::trunc);
+      f << value;
     } catch (...) {}
   }
 
