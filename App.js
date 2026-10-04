@@ -7,6 +7,7 @@ import * as player from './player';
 import { bus } from './bus';
 import * as store from './storage';
 import { WORKER } from './config';
+import { MOODS } from './moods';
 
 const VERSION = '0.2.0';
 const BUILD = (typeof process !== 'undefined' && process.env && process.env.EXPO_PUBLIC_BUILD) || 'dev';
@@ -180,6 +181,8 @@ function Home({ c, A }) {
           </ScrollView>
         ) : <Text style={{ color: c.sub, textAlign: 'right', marginHorizontal: 16, marginTop: 8 }}>נגן משהו ונתחיל להכיר את הטעם שלך.</Text>}
       </View>
+      <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 8 }]}>מצבי רוח ואווירה</Text>
+      <MoodTiles c={c} A={A} />
       <Shelf title="השירים החדשים הטובים ביותר" query="שירים חדשים ישראל" c={c} A={A} rows />
       <Shelf title="מוזיקה חדשה" query="שירים פופולריים ישראל" c={c} A={A} />
       <Shelf title="כולם מקשיבים ל..." query="להיטים ישראלים" c={c} A={A} wide />
@@ -213,7 +216,9 @@ function Topic({ t, c, A }) {
 function Browse({ c, A }) {
   return (
     <View>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 10 }}>
+      <Text style={[s.h2, { color: c.fg, marginTop: 14, marginBottom: 8 }]}>מצבי רוח ואווירה</Text>
+      <MoodTiles c={c} A={A} />
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 18 }}>
         {TOPICS.map((t) => <Topic key={t[0]} t={t} c={c} A={A} />)}
       </View>
       <Shelf title="מוזיקה חדשה" query="שירים חדשים ישראל" c={c} A={A} />
@@ -559,6 +564,70 @@ function Lyrics({ c, cur, pos, dur }) {
   );
 }
 
+const MOOD_COLORS = ['#c0392b', '#e67e22', '#8e44ad', '#e84393', '#d63031', '#2d3436', '#6c5ce7', '#00b894', '#0984e3', '#b8860b', '#a0522d', '#27ae60'];
+async function resolveMood(m) {
+  const out = [];
+  const seen = new Set();
+  await Promise.all(m.songs.map(async ([ar, ti], i) => {
+    try {
+      const r = await searchCached(ar + ' ' + ti);
+      const tk = lkey(ti), ak = norm(ar);
+      const hit = r.find((t) => { const k = lkey(t.title); return (k === tk || k.includes(tk)) && (norm(t.artist).includes(ak) || norm(t.title).includes(ak)); });
+      if (hit) out[i] = hit;
+    } catch (e) {}
+  }));
+  return out.filter((t) => t && !seen.has(t.id) && seen.add(t.id));
+}
+function MoodTiles({ c, A }) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+      {MOODS.map((m, i) => (
+        <Pressable key={m.name} onPress={() => A.open({ kind: 'mood', mood: m, color: MOOD_COLORS[i % MOOD_COLORS.length], title: m.name })}
+          style={{ width: 150, height: 110, borderRadius: 12, marginLeft: 12, padding: 12, justifyContent: 'flex-end', backgroundColor: MOOD_COLORS[i % MOOD_COLORS.length] }}>
+          <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800', textAlign: 'right' }}>{m.name}</Text>
+          <Text numberOfLines={1} style={{ color: '#fff', opacity: 0.85, fontSize: 12, textAlign: 'right' }}>{m.desc}</Text>
+        </Pressable>
+      ))}
+    </ScrollView>
+  );
+}
+function MoodPage({ c, A, page }) {
+  const [tracks, setTracks] = useState(null);
+  useEffect(() => { let live = true; resolveMood(page.mood).then((r) => live && setTracks(r)).catch(() => live && setTracks([])); return () => { live = false; }; }, [page.title]);
+  const artists = [];
+  for (const [a] of page.mood.songs) if (!artists.includes(a)) artists.push(a);
+  return (
+    <View>
+      <Pressable onPress={A.back} style={{ padding: 16 }}><Text style={{ color: RED, fontSize: 16, textAlign: 'right' }}>{'› חזרה'}</Text></Pressable>
+      <View style={{ marginHorizontal: 16, borderRadius: 16, padding: 20, backgroundColor: page.color, alignItems: 'center' }}>
+        <Text style={{ color: '#fff', fontSize: 28, fontWeight: '800' }}>{page.title}</Text>
+        <Text style={{ color: '#fff', opacity: 0.9, marginTop: 4 }}>{page.mood.desc}</Text>
+        <View style={{ flexDirection: 'row', marginTop: 12 }}>
+          <Pressable disabled={!tracks || !tracks.length} onPress={() => A.play(tracks[0], tracks)} style={{ backgroundColor: '#fff', borderRadius: 20, paddingHorizontal: 22, paddingVertical: 8, marginHorizontal: 5 }}>
+            <Text style={{ color: page.color, fontWeight: '800' }}>{'▶ התחל'}</Text>
+          </Pressable>
+          <Pressable disabled={!tracks || !tracks.length} onPress={() => { const sh = tracks.slice().sort(() => Math.random() - 0.5); A.play(sh[0], sh); }} style={{ backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 20, paddingHorizontal: 22, paddingVertical: 8, marginHorizontal: 5 }}>
+            <Text style={{ color: '#fff', fontWeight: '800' }}>{'ערבוב'}</Text>
+          </Pressable>
+        </View>
+      </View>
+      <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 6 }]}>אמנים בתחום</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+        {artists.map((n) => (
+          <Pressable key={n} onPress={() => A.openArtist(n)} style={{ width: 96, alignItems: 'center', marginLeft: 12 }}>
+            <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: RED, fontSize: 28, fontWeight: '800' }}>{n.slice(0, 1)}</Text></View>
+            <Text numberOfLines={1} style={{ color: c.fg, marginTop: 6 }}>{n}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+      <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 6 }]}>שירים</Text>
+      {!tracks && <ActivityIndicator color={RED} style={{ margin: 14 }} />}
+      {!!tracks && !tracks.length && <Text style={{ color: c.sub, textAlign: 'center', margin: 14 }}>לא נמצאו שירים מאומתים כרגע. נסה שוב בעוד רגע.</Text>}
+      {!!tracks && tracks.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onPress={() => A.play(t, tracks)} />)}
+    </View>
+  );
+}
+
 export default function App() {
   const system = useColorScheme();
   const { width } = useWindowDimensions();
@@ -689,7 +758,7 @@ export default function App() {
           <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '700' }}>{'גרסה חדשה v' + upd.n + ' זמינה - הקש להורדה'}</Text>
         </Pressable>
       )}
-      {page ? (page.kind === 'artist' ? <ArtistPage c={c} A={A} page={page} /> : page.kind === 'album' ? <AlbumPage c={c} A={A} page={page} /> : <ListPage c={c} A={A} page={page} />) : (
+      {page ? (page.kind === 'artist' ? <ArtistPage c={c} A={A} page={page} /> : page.kind === 'album' ? <AlbumPage c={c} A={A} page={page} /> : page.kind === 'mood' ? <MoodPage c={c} A={A} page={page} /> : <ListPage c={c} A={A} page={page} />) : (
         <View>
           <Text style={[s.large, { color: c.fg }]}>{titleOf}</Text>
           {tab === 'home' && <Home c={c} A={A} />}
@@ -735,7 +804,9 @@ export default function App() {
   );
 
   const fullView = full && cur && (
-    <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: c.bg, padding: 20, paddingTop: Platform.OS === 'web' ? 20 : 48 }}>
+    <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: wideScreen ? 'rgba(0,0,0,0.55)' : c.bg, alignItems: 'center', justifyContent: 'center' }}>
+      {wideScreen && <Pressable onPress={() => setFull(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} />}
+      <View style={{ width: wideScreen ? 560 : '100%', height: '100%', maxHeight: wideScreen ? '92%' : '100%', backgroundColor: c.bg, borderRadius: wideScreen ? 18 : 0, padding: 20, paddingTop: Platform.OS === 'web' || Platform.OS === 'windows' || wideScreen ? 20 : 48 }}>
       <Pressable onPress={() => setFull(false)} style={{ padding: 8 }}><Text style={{ color: c.sub, fontSize: 22, textAlign: 'center' }}>⌄</Text></Pressable>
       <ScrollView contentContainerStyle={{ alignItems: 'center' }}>
         {cur.thumb ? <Image source={{ uri: cur.thumb }} style={{ width: 280, height: 280, borderRadius: 14, marginTop: 10 }} /> : null}
@@ -756,6 +827,7 @@ export default function App() {
           {queue.slice(Math.max(0, queue.findIndex((t) => t.id === cur.id) + 1), 40).map((t) => <Row key={t.id} t={t} c={c} active={false} fav={isFav(t)} onFav={() => toggleFav(t)} onPress={() => play(t)} />)}
         </View>
       </ScrollView>
+      </View>
     </View>
   );
 
