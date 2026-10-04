@@ -53,7 +53,43 @@ jobs:
         shell: pwsh
         working-directory: AviWin
         run: npx react-native run-windows --release --no-launch --no-deploy --arch x64 --logging --no-telemetry
-      - name: Show output
+      - name: Build installer (.exe)
         shell: pwsh
-        working-directory: AviWin
-        run: Get-ChildItem -Recurse -Include *.exe,*.msix,*.appx windows | Select-Object -First 30 FullName
+        run: |
+          $pkg = Get-ChildItem -Directory AviWin/windows/AviWin.Package/AppPackages | Where-Object { $_.Name -like '*_Test' } | Select-Object -First 1
+          if (-not $pkg) { throw 'no Test package folder' }
+          Write-Host "Package folder: $($pkg.FullName)"
+          Get-ChildItem $pkg.FullName | Select-Object Name
+          choco install innosetup -y --no-progress
+          $iss = @"
+          [Setup]
+          AppName=Avi Music
+          AppVersion=0.2.0.${{ github.run_number }}
+          DefaultDirName={tmp}\AviMusicSetup
+          PrivilegesRequired=admin
+          OutputDir=out
+          OutputBaseFilename=AviMusic-Setup
+          Compression=lzma
+          SolidCompression=yes
+          DisableDirPage=yes
+          DisableProgramGroupPage=yes
+          Uninstallable=no
+          CreateAppDir=no
+          [Files]
+          Source: "$($pkg.FullName)\*"; DestDir: "{tmp}\AviMusicPkg"; Flags: recursesubdirs createallsubdirs deleteafterinstall
+          [Run]
+          Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{tmp}\AviMusicPkg\Add-AppDevPackage.ps1"" -Force"; StatusMsg: "Installing Avi Music..."; Flags: waituntilterminated
+          "@
+          Set-Content -Path AviMusic.iss -Value $iss
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" AviMusic.iss
+          Get-ChildItem out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AviMusic-Setup
+          path: out/AviMusic-Setup.exe
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: win-${{ github.run_number }}
+          name: Avi Music Windows ${{ github.run_number }}
+          files: out/AviMusic-Setup.exe
