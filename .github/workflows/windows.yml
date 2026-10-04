@@ -45,6 +45,12 @@ jobs:
           cp player.native.js player.web.js AviWin/ || true
           find AviWin/windows -maxdepth 3 -not -path '*/node_modules/*' | head -80
           grep -rn "AddAttributedModules\|ReactPackageProvider" AviWin/windows --include=*.cpp --include=*.h -l | head
+          rp=$(grep -rl "AddAttributedModules" AviWin/windows --include=*.cpp | head -1)
+          if [ -z "$rp" ]; then rp=$(find AviWin/windows -name 'ReactPackageProvider.cpp' | head -1); fi
+          echo "provider: $rp"
+          cp windows-native/AviAudio.h "$(dirname "$rp")/AviAudio.h"
+          sed -i 's/#include "NativeModules.h"/#include "NativeModules.h"\n#include "AviAudio.h"/' "$rp"
+          grep -n AviAudio "$rp"
           mf=$(find AviWin/windows -name Package.appxmanifest | head -1)
           echo "manifest: $mf"
           sed -i 's/>AviWin</>Avi Music</; s/DisplayName="AviWin"/DisplayName="Avi Music"/' "$mf"
