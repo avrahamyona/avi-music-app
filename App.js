@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
-  View, Text, TextInput, FlatList, Image, Pressable, StyleSheet,
+  View, Text, TextInput, FlatList, Image, Pressable, StyleSheet, Animated, Easing,
   useColorScheme, Platform, Share, Modal, ActivityIndicator, StatusBar, Linking, ScrollView, useWindowDimensions,
 } from 'react-native';
 import * as player from './player';
@@ -101,6 +101,12 @@ function Card({ t, onPress, c, wide, sub }) {
       <Text numberOfLines={1} style={{ color: c.sub, fontSize: 13, textAlign: 'right' }}>{sub || t.artist}</Text>
     </Pressable>
   );
+}
+
+function PlayerArt({ uri, playing, size, wide }) {
+  const v = useRef(new Animated.Value(playing ? 1 : 0.88)).current;
+  useEffect(() => { Animated.timing(v, { toValue: playing ? 1 : 0.88, duration: 220, easing: Easing.bezier(0.25, 0.1, 0.25, 1), useNativeDriver: false }).start(); }, [playing]);
+  return <Animated.Image source={{ uri }} style={{ width: size, height: size, borderRadius: wide ? 7 : 10, marginTop: 10, backgroundColor: '#8883', transform: [{ scale: v }] }} />;
 }
 
 function Row({ t, onPress, c, active, fav, onFav, onMore }) {
@@ -934,8 +940,8 @@ export default function App() {
       <View style={{ width: wideScreen ? 500 : '100%', height: '100%', maxHeight: wideScreen ? 790 : '100%', backgroundColor: c.bg, borderRadius: wideScreen ? 24 : 0, borderWidth: wideScreen ? 1 : 0, borderColor: c.line, padding: 20, paddingTop: Platform.OS === 'web' || Platform.OS === 'windows' || wideScreen ? 20 : 48 }}>
       <Pressable onPress={() => setFull(false)} style={{ padding: 8 }}><View style={{ alignItems: 'center' }}><Icon name="chevdown" size={28} color={c.sub} /></View></Pressable>
       <ScrollView contentContainerStyle={{ alignItems: 'center' }}>
-        {cur.thumb ? <Image source={{ uri: cur.thumb }} style={{ width: 280, height: 280, borderRadius: 14, marginTop: 10 }} /> : null}
-        <Text numberOfLines={2} style={{ color: c.fg, fontSize: 22, fontWeight: '800', marginTop: 18, textAlign: 'center' }}>{cur.title}</Text>
+        {cur.thumb ? <PlayerArt uri={cur.thumb} playing={playing} wide={wideScreen} size={wideScreen ? 340 : Math.min(340, width * 0.86)} /> : null}
+        <Text numberOfLines={2} style={{ color: c.fg, fontSize: 19, fontWeight: '700', marginTop: 18, textAlign: 'center' }}>{cur.title}</Text>
         <Pressable onPress={() => { setFull(false); openArtist(cur.artist, cur.ch); }}>
           <Text style={{ color: RED, fontSize: 16, marginTop: 4 }}>{cur.artist}</Text>
         </Pressable>
