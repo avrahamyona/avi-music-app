@@ -1,14 +1,13 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View, Text, TextInput, FlatList, Image, Pressable, StyleSheet,
-  useColorScheme, I18nManager, Platform, ActivityIndicator,
+  useColorScheme, Platform, ActivityIndicator, StatusBar,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import * as player from './player';
 import { bus } from './bus';
 
 const VERSION = '0.2.0';
-const BUILD = process.env.EXPO_PUBLIC_BUILD || 'dev';
+const BUILD = (typeof process !== 'undefined' && process.env && process.env.EXPO_PUBLIC_BUILD) || 'dev';
 const PIPED = [
   'https://api.piped.private.coffee',
   'https://pipedapi.kavin.rocks',
@@ -148,7 +147,7 @@ export default function App() {
 
   return (
     <View style={[s.root, { backgroundColor: c.bg, direction: 'rtl' }]}>
-      <StatusBar style={dark ? 'light' : 'dark'} />
+      <StatusBar barStyle={dark ? 'light-content' : 'dark-content'} />
       <View style={s.top}>
         <Text style={[s.title, { color: c.fg }]}>Avi Music</Text>
         <Text style={{ color: c.sub, fontSize: 12 }}>{'גרסה ' + VERSION + ' (build ' + BUILD + ')'}</Text>
