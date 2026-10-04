@@ -7,6 +7,7 @@
     "orientation": "default",
     "userInterfaceStyle": "automatic",
     "web": { "bundler": "metro", "output": "single", "favicon": "./assets/icon.png" },
+    "experiments": { "baseUrl": "/avi-music-app" },
     "ios": {
       "bundleIdentifier": "com.avimusic.app",
       "infoPlist": { "UIBackgroundModes": ["audio"] }
