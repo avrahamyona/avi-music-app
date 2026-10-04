@@ -6,6 +6,7 @@ import {
 import * as player from './player';
 import { bus } from './bus';
 import * as store from './storage';
+import { WORKER } from './config';
 
 const VERSION = '0.2.0';
 const BUILD = (typeof process !== 'undefined' && process.env && process.env.EXPO_PUBLIC_BUILD) || 'dev';
@@ -46,6 +47,7 @@ async function searchTracks(q) {
         return m && {
           id: m[1], title: it.title || '', artist: it.uploaderName || '',
           thumb: it.thumbnail || '', dur: it.duration > 0 ? it.duration : 0,
+          ch: ((/\/channel\/(UC[A-Za-z0-9_-]{22})/.exec(it.uploaderUrl || '')) || [])[1] || '',
         };
       })
       .filter(Boolean);
@@ -165,7 +167,7 @@ function Home({ c, A }) {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
             {seeds.map((a, i) => (
               <Hero key={a} title={'המיקס של ' + a} kicker="במיוחד עבורך" grad={GRADS[i % GRADS.length]}
-                img={byArtist(a) && byArtist(a).thumb} onPress={() => A.openArtist(a)} />
+                img={byArtist(a) && byArtist(a).thumb} onPress={() => A.openArtist(a, byArtist(a) && byArtist(a).ch)} />
             ))}
           </ScrollView>
         </View>
@@ -283,6 +285,111 @@ function ListPage({ c, A, page }) {
   );
 }
 
+
+async function wjson(path) {
+  let last;
+  for (let i = 0; i < 3; i++) {
+    try { const r = await fetch(WORKER + path); if (r.ok) return await r.json(); last = new Error('http ' + r.status); } catch (e) { last = e; }
+  }
+  throw last;
+}
+const ytThumb = (id) => 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg';
+
+function ArtistPage({ c, A, page }) {
+  const [songs, setSongs] = useState(null);
+  const [albums, setAlbums] = useState(null);
+  const [similar, setSimilar] = useState(null);
+  const [ch, setCh] = useState(page.ch);
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      let found = [];
+      try { found = await searchCached(page.title); } catch (e) {}
+      const mine = found.filter((t) => (page.ch ? t.ch === page.ch : norm(t.artist).includes(norm(page.title))));
+      if (!live) return;
+      setSongs(mine.length ? mine : found);
+      const id = page.ch || (mine[0] && mine[0].ch) || (found[0] && found[0].ch);
+      if (id) {
+        setCh(id);
+        wjson('/music-artist/' + id).then((j) => live && setAlbums((j.releases || []).filter((r) => r.plId))).catch(() => live && setAlbums([]));
+        wjson('/similar-artists/' + id).then((j) => live && setSimilar(j.artists || [])).catch(() => live && setSimilar([]));
+      } else { setAlbums([]); setSimilar([]); }
+    })();
+    return () => { live = false; };
+  }, [page.title, page.ch]);
+  const cover = songs && songs[0];
+  return (
+    <View>
+      <Pressable onPress={A.back} style={{ padding: 16 }}><Text style={{ color: RED, fontSize: 16, textAlign: 'right' }}>{'› חזרה'}</Text></Pressable>
+      <View style={{ alignItems: 'center', paddingHorizontal: 16 }}>
+        {cover ? <Image source={{ uri: cover.thumb }} style={{ width: 160, height: 160, borderRadius: 80, backgroundColor: c.card }} /> : <View style={{ width: 160, height: 160, borderRadius: 80, backgroundColor: c.card }} />}
+        <Text style={{ color: c.fg, fontSize: 28, fontWeight: '800', marginTop: 12 }}>{page.title}</Text>
+        <Pressable disabled={!songs || !songs.length} onPress={() => A.play(songs[0], songs)} style={{ backgroundColor: RED, borderRadius: 20, paddingHorizontal: 28, paddingVertical: 8, marginTop: 10 }}>
+          <Text style={{ color: '#fff', fontWeight: '700' }}>{'▶ נגן'}</Text>
+        </Pressable>
+      </View>
+      <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 6 }]}>שירים</Text>
+      {!songs && <ActivityIndicator color={RED} style={{ margin: 14 }} />}
+      {!!songs && !songs.length && <Text style={{ color: c.sub, textAlign: 'center' }}>לא נמצאו שירים</Text>}
+      {!!songs && songs.slice(0, 10).map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onPress={() => A.play(t, songs)} />)}
+      {!!albums && !!albums.length && (
+        <View style={{ marginTop: 22 }}>
+          <Text style={[s.h2, { color: c.fg, marginBottom: 8 }]}>אלבומים וסינגלים</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+            {albums.slice(0, 20).map((al) => (
+              <Card key={al.plId} t={{ title: al.title, thumb: al.thumb, artist: al.releaseYear || '' }} c={c} onPress={() => A.openAlbum(al)} />
+            ))}
+          </ScrollView>
+        </View>
+      )}
+      {!!similar && !!similar.length && (
+        <View style={{ marginTop: 22 }}>
+          <Text style={[s.h2, { color: c.fg, marginBottom: 8 }]}>אמנים דומים</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+            {similar.slice(0, 15).map((ar) => (
+              <Pressable key={ar.id} onPress={() => A.openArtist(ar.name, ar.id)} style={{ width: 110, alignItems: 'center', marginLeft: 12 }}>
+                {ar.avatar ? <Image source={{ uri: ar.avatar }} style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: c.card }} /> : <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: c.card }} />}
+                <Text numberOfLines={1} style={{ color: c.fg, marginTop: 6 }}>{ar.name}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+    </View>
+  );
+}
+
+function AlbumPage({ c, A, page }) {
+  const [tracks, setTracks] = useState(null);
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    let live = true;
+    wjson('/album/' + page.plId).then((j) => {
+      if (!live) return;
+      const list = clean((j.tracks || []).map((t) => ({ id: t.id, title: t.title, artist: t.artist || page.artist, thumb: page.thumb || ytThumb(t.id), dur: 0, ch: '' })));
+      setTracks(list);
+      if (!list.length) setErr('האלבום ריק');
+    }).catch(() => { if (live) { setTracks([]); setErr('האלבום לא זמין כרגע'); } });
+    return () => { live = false; };
+  }, [page.plId]);
+  return (
+    <View>
+      <Pressable onPress={A.back} style={{ padding: 16 }}><Text style={{ color: RED, fontSize: 16, textAlign: 'right' }}>{'› חזרה'}</Text></Pressable>
+      <View style={{ alignItems: 'center' }}>
+        {page.thumb ? <Image source={{ uri: page.thumb }} style={{ width: 200, height: 200, borderRadius: 10, backgroundColor: c.card }} /> : null}
+        <Text style={{ color: c.fg, fontSize: 24, fontWeight: '800', marginTop: 12, textAlign: 'center', paddingHorizontal: 16 }}>{page.title}</Text>
+        <Text style={{ color: c.sub }}>{page.artist}</Text>
+        <Pressable disabled={!tracks || !tracks.length} onPress={() => A.play(tracks[0], tracks)} style={{ backgroundColor: RED, borderRadius: 20, paddingHorizontal: 28, paddingVertical: 8, marginTop: 10 }}>
+          <Text style={{ color: '#fff', fontWeight: '700' }}>{'▶ נגן'}</Text>
+        </Pressable>
+      </View>
+      {!tracks && <ActivityIndicator color={RED} style={{ margin: 14 }} />}
+      {!!err && <Text style={{ color: c.sub, textAlign: 'center', margin: 14 }}>{err}</Text>}
+      {!!tracks && tracks.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onPress={() => A.play(t, tracks)} />)}
+    </View>
+  );
+}
+
 export default function App() {
   const system = useColorScheme();
   const { width } = useWindowDimensions();
@@ -373,14 +480,9 @@ export default function App() {
   const toggleFav = (t) => setFavs((f) => { const n = f.some((x) => x.id === t.id) ? f.filter((x) => x.id !== t.id) : [t, ...f]; store.set('favs', n); return n; });
   const open = (p) => setPages((x) => [...x, p]);
   const back = () => setPages((x) => x.slice(0, -1));
-  const openArtist = async (name) => {
-    try {
-      const r = await searchCached(name);
-      const m = r.filter((t) => norm(t.artist).includes(norm(name)));
-      open({ title: name, items: m.length ? m : r });
-    } catch (e) {}
-  };
-  const A = { cur, play, isFav, toggleFav, open, back, openArtist, history, favs };
+  const openArtist = (name, ch) => open({ kind: 'artist', title: String(name).replace(/ - Topic$/i, ''), ch: ch || '' });
+  const openAlbum = (al) => open({ kind: 'album', title: al.title, plId: al.plId, thumb: al.thumb, artist: al.artistName || '' });
+  const A = { cur, play, isFav, toggleFav, open, back, openArtist, openAlbum, history, favs };
 
   const seek = (e) => {
     if (!dur) return;
@@ -405,7 +507,7 @@ export default function App() {
           <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '700' }}>{'גרסה חדשה v' + upd.n + ' זמינה - הקש להורדה'}</Text>
         </Pressable>
       )}
-      {page ? <ListPage c={c} A={A} page={page} /> : (
+      {page ? (page.kind === 'artist' ? <ArtistPage c={c} A={A} page={page} /> : page.kind === 'album' ? <AlbumPage c={c} A={A} page={page} /> : <ListPage c={c} A={A} page={page} />) : (
         <View>
           <Text style={[s.large, { color: c.fg }]}>{titleOf}</Text>
           {tab === 'home' && <Home c={c} A={A} />}
@@ -456,7 +558,7 @@ export default function App() {
       <ScrollView contentContainerStyle={{ alignItems: 'center' }}>
         {cur.thumb ? <Image source={{ uri: cur.thumb }} style={{ width: 280, height: 280, borderRadius: 14, marginTop: 10 }} /> : null}
         <Text numberOfLines={2} style={{ color: c.fg, fontSize: 22, fontWeight: '800', marginTop: 18, textAlign: 'center' }}>{cur.title}</Text>
-        <Pressable onPress={() => { setFull(false); openArtist(cur.artist.replace(/ - Topic$/i, '')); }}>
+        <Pressable onPress={() => { setFull(false); openArtist(cur.artist, cur.ch); }}>
           <Text style={{ color: RED, fontSize: 16, marginTop: 4 }}>{cur.artist}</Text>
         </Pressable>
         {!!status && <Text style={{ color: c.sub, marginTop: 6, textAlign: 'center' }}>{status}</Text>}
