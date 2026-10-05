@@ -5,6 +5,7 @@
 #include <winrt/Windows.Media.Core.h>
 #include <winrt/Windows.Media.Playback.h>
 #include <winrt/Windows.Storage.h>
+#include <atomic>
 #include <fstream>
 #include <iterator>
 #include <memory>
@@ -111,6 +112,7 @@ struct AviAudio {
     o["dur"] = dur;
     o["playing"] = playing;
     o["ended"] = m_ended.load();
+    o["cmd"] = m_cmd.exchange(0);
     result.Resolve(std::move(o));
   }
 
@@ -133,10 +135,18 @@ struct AviAudio {
     m_player.MediaOpened([this](auto &&, auto &&) { Settle(true); });
     m_player.MediaFailed([this](auto &&, auto &&) { Settle(false); });
     m_player.MediaEnded([this](auto &&, auto &&) { m_ended = true; });
+    try {
+      auto cm = m_player.CommandManager();
+      cm.NextBehavior().EnablingRule(MediaCommandEnablingRule::Always);
+      cm.PreviousBehavior().EnablingRule(MediaCommandEnablingRule::Always);
+      cm.NextReceived([this](auto &&, MediaPlaybackCommandManagerNextReceivedEventArgs const &a) { m_cmd = 1; a.Handled(true); });
+      cm.PreviousReceived([this](auto &&, MediaPlaybackCommandManagerPreviousReceivedEventArgs const &a) { m_cmd = 2; a.Handled(true); });
+    } catch (...) {}
   }
 
   winrt::Microsoft::ReactNative::ReactContext m_ctx;
   double m_vol{1.0};
+  std::atomic<int> m_cmd{0};
   winrt::Windows::Media::Playback::MediaPlayer m_player{nullptr};
   std::mutex m_mu;
   std::shared_ptr<winrt::Microsoft::ReactNative::ReactPromise<bool>> m_pending;
