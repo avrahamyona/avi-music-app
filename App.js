@@ -298,8 +298,21 @@ function Browse({ c, A }) {
 }
 const STATIONS = [['להיטי ישראל', 'להיטים ישראלים'], ['מזרחית', 'מוזיקה מזרחית להיטים'], ['שירים חדשים', 'שירים חדשים ישראל'], ['ים-תיכונית', 'ים תיכונית ישראלית'], ['רגוע', 'שירים רגועים ישראל']];
 function Radio({ c, A }) {
+  const mine = topArtists(A.stats).slice(0, 6);
+  const playQ = async (q, mix) => { try { const r = await searchCached(q); if (r.length) { const l = [r[0], ...r.slice(1).sort(() => Math.random() - 0.5)]; A.play(l[0], l); } } catch (e) {} };
+  const card = (title, sub, onPress, i) => (
+    <Pressable key={title + i} onPress={onPress} style={{ height: 96, borderRadius: 14, marginHorizontal: 16, marginTop: 12, backgroundColor: GRADS[i % GRADS.length][0], justifyContent: 'flex-end', padding: 14 }}>
+      <Text style={{ color: '#fff', opacity: 0.85, fontSize: 12, fontWeight: '700', textAlign: 'right' }}>{sub}</Text>
+      <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800', textAlign: 'right' }}>{title}</Text>
+    </Pressable>
+  );
   return (
     <View>
+      {!!mine.length && <Text style={[s.h2, { color: c.fg, marginTop: 6 }]}>תחנות לפי ההאזנה שלך</Text>}
+      {mine.slice(0, 3).map((n, i) => card(n, 'התחנה של ' + n, () => playQ(n + ' שירים'), i))}
+      {(!!(A.favs || []).length || !!(A.history || []).length) && <Text style={[s.h2, { color: c.fg, marginTop: 18 }]}>תחנה אישית</Text>}
+      {(!!(A.favs || []).length || !!(A.history || []).length) && card('הרדיו שלך', 'שירים שאתה אוהב ועוד כמוהם', () => { const base = (A.favs && A.favs.length ? A.favs : A.history).slice(0, 12); const l = base.sort(() => Math.random() - 0.5); if (l.length) A.play(l[0], l); }, 3)}
+      <Text style={[s.h2, { color: c.fg, marginTop: 18 }]}>תחנות</Text>
       {STATIONS.map(([n, q], i) => (
         <Pressable key={n} onPress={async () => { try { const r = await searchCached(q); if (r.length) A.play(r[0], r.slice().sort(() => Math.random() - 0.5).length ? [r[0], ...r.slice(1).sort(() => Math.random() - 0.5)] : r); } catch (e) {} }}
           style={{ height: 96, borderRadius: 14, marginHorizontal: 16, marginTop: 12, backgroundColor: GRADS[i % GRADS.length][0], justifyContent: 'flex-end', padding: 14 }}>
@@ -399,6 +412,8 @@ function Library({ c, A }) {
     </View>
   );
 }
+const GENRES = [['מוזיקה עברית', 'מוזיקה עברית להיטים'], ['מזרחית', 'מזרחית להיטים'], ['מוזיקה פופ - ים תיכונית', 'פופ ים תיכוני'], ['מוזיקה יהודית', 'מוזיקה יהודית'], ['הופעות', 'הופעה חיה'], ['מוזיקה ערבית אמיתית', 'מוזיקה ערבית'], ['מוזיקה ערבית ישראלית', 'ערבית ישראלית'], ['מוזיקה חדשה', 'שירים חדשים']];
+const topArtists = (st) => Object.entries((st && st.artists) || {}).sort((x, y) => y[1] - x[1]).map((e) => e[0]);
 function SearchTab({ c, A }) {
   const [q, setQ] = useState('');
   const [res, setRes] = useState([]);
@@ -429,6 +444,26 @@ function SearchTab({ c, A }) {
     <View>
       <TextInput value={q} onChangeText={setQ} onSubmitEditing={() => go()} returnKeyType="search" placeholder="חפש שירים, אמנים..." placeholderTextColor={c.sub}
         style={[s.input, { backgroundColor: c.card, color: c.fg, textAlign: 'right' }]} />
+      {!done && (
+        <View style={{ paddingHorizontal: 16 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+            {GENRES.map(([n, qq], i) => (
+              <Pressable key={n} onPress={async () => { try { const r = await searchCached(qq); A.open({ title: n, items: r }); } catch (e) {} }}
+                style={{ width: '48.5%', height: 76, borderRadius: 12, marginBottom: 10, backgroundColor: GRADS[i % GRADS.length][0], justifyContent: 'flex-end', padding: 10 }}>
+                <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15, textAlign: 'right' }}>{n}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {!!(A.history || []).length && <Text style={[s.h2, { color: c.fg, marginHorizontal: 0, marginTop: 8 }]}>הושמעו לאחרונה</Text>}
+          {(A.history || []).slice(0, 3).map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={(pt) => A.sheet(t, pt)} onPress={() => A.play(t, A.history)} />)}
+          {!!topArtists(A.stats).length && <Text style={[s.h2, { color: c.fg, marginHorizontal: 0, marginTop: 14 }]}>אמנים שהאזנת להם</Text>}
+          {topArtists(A.stats).slice(0, 8).map((n) => (
+            <Pressable key={n} onPress={() => go(n)} style={{ paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#8884' }}>
+              <Text style={{ color: c.fg, fontSize: 16, textAlign: 'right' }}>{n}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
       {!done && !!recent.length && (
         <View style={{ paddingHorizontal: 16 }}>
           <Text style={[s.h2, { color: c.fg, marginHorizontal: 0, marginBottom: 8 }]}>חיפושים אחרונים</Text>
