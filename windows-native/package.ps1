@@ -53,6 +53,8 @@ if ($sig.Status -ne 'Valid') { throw "msix signature is not Valid: $($sig.Status
 Copy-Item "$root\windows-native\install.ps1" "$stage\install.ps1"
 
 choco install innosetup -y --no-progress | Out-Null
+$iconLine = ''
+if (Test-Path "$root\AviMusic.ico") { $iconLine = "SetupIconFile=$root\AviMusic.ico" }
 $iss = @"
 [Setup]
 AppName=Avi Music
@@ -67,6 +69,7 @@ CreateAppDir=no
 Uninstallable=no
 DisableDirPage=yes
 DisableProgramGroupPage=yes
+$iconLine
 [Files]
 Source: "$stage\*"; DestDir: "{tmp}\AviMusicPkg"; Flags: recursesubdirs createallsubdirs deleteafterinstall
 [Run]
