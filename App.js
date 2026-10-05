@@ -237,7 +237,7 @@ function Home({ c, A }) {
           <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
             {seeds.map((a, i) => (
               <Hero key={a} title={'שירים של ' + a} kicker="במיוחד עבורך" desc={'עוד שירים של ' + a} grad={GRADS[i % GRADS.length]}
-                img={byArtist(a) && byArtist(a).thumb} onPress={() => A.openArtist(a, byArtist(a) && byArtist(a).ch)} />
+                img={byArtist(a) && byArtist(a).thumb} onPress={async () => { try { const ch = byArtist(a) && byArtist(a).ch; const r = (await searchCached(a)).filter((t) => norm(String(t.artist).replace(/ - Topic$/i, '')) === norm(a) && (!ch || !t.ch || t.ch === ch)); if (!r.length) { A.openArtist(a, ch); return; } const q = r.slice(); for (let i = q.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [q[i], q[j]] = [q[j], q[i]]; } A.play(q[0], q); } catch (e) { A.openArtist(a); } }} />
             ))}
           </HScroll>
         </View>
