@@ -174,6 +174,7 @@ function HScroll({ children, contentContainerStyle, ...rest }) {
   );
 }
 
+if (Platform.OS === 'web' && typeof document !== 'undefined' && !document.getElementById('avi-nosb')) { const st = document.createElement('style'); st.id = 'avi-nosb'; st.textContent = '*{scrollbar-width:none;-ms-overflow-style:none}*::-webkit-scrollbar{display:none;width:0;height:0}'; document.head.appendChild(st); }
 const mixc = (c, t, w) => Math.round(c * w + t * (1 - w));
 let BlurView = null;
 try { if (Platform.OS === 'ios' || Platform.OS === 'android') BlurView = require('expo-blur').BlurView; } catch (e) { BlurView = null; }
@@ -1687,11 +1688,11 @@ function AppInner() {
           </View>}
         </View>}
         {showQ && <Pressable onPress={() => setPrevOpen((v) => !v)} style={{ alignSelf: 'stretch', paddingVertical: 8 }}><Text style={{ color: c.fg, fontSize: 16, fontWeight: '800', textAlign: 'right' }}>{'ניגן קודם ' + (prevOpen ? '▾' : '‹')}</Text></Pressable>}
-        {showQ && prevOpen && (history.filter((x) => !cur || x.id !== cur.id).length ? history.filter((x) => !cur || x.id !== cur.id).slice(0, 20).map((t) => <Row key={'p' + t.id} t={t} c={c} active={false} fav={isFav(t)} onFav={() => toggleFav(t)} onMore={() => setSheet(t)} onPress={() => play(t, [t])} />) : <Text style={{ color: c.sub, fontSize: 13, textAlign: 'right', paddingBottom: 8 }}>השירים שתשמע מכאן והלאה יופיעו כאן</Text>)}
+        {showQ && prevOpen && (history.filter((x) => !cur || x.id !== cur.id).length ? history.filter((x) => !cur || x.id !== cur.id).slice(0, 20).map((t) => <Row key={'p' + t.id} t={t} c={c} active={false} fav={isFav(t)} onFav={() => toggleFav(t)} onMore={(pt) => { setAnchor(pt || null); setSheet(t); }} onPress={() => play(t, [t])} />) : <Text style={{ color: c.sub, fontSize: 13, textAlign: 'right', paddingBottom: 8 }}>השירים שתשמע מכאן והלאה יופיעו כאן</Text>)}
         {showQ && <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginTop: 12 }}><Pressable onPress={() => setShuffle((v) => !v)} style={{ padding: 8 }}><Icon name="shuffle" size={20} color={shuffle ? RED : c.fg} /></Pressable><Pressable onPress={() => setRepeat((r) => (r === 'off' ? 'all' : r === 'all' ? 'one' : 'off'))} style={{ padding: 8 }}><Icon name="repeat" size={20} color={repeat === 'off' ? c.fg : RED} /></Pressable><Pressable onPress={toggleAutoNext} style={{ padding: 8 }}><Text style={{ color: autoNext ? RED : c.fg, fontSize: 20, fontWeight: '800' }}>∞</Text></Pressable><Text style={[s.h2, { color: c.fg, flex: 1, textAlign: 'right' }]}>התור המקורי</Text></View>}
         {showQ && <Text style={{ color: c.sub, fontSize: 12, textAlign: 'right', marginTop: 4, alignSelf: 'stretch' }}>{autoNext ? '∞ הפעלה אינסופית · שמירת עד 10 שירים בהמשך התור' : '∞ הפעלה אינסופית כבויה'}</Text>}
         {showQ && <View style={{ width: '100%', backgroundColor: 'transparent' }}>
-          {queue.slice(Math.max(0, queue.findIndex((t) => t.id === cur.id) + 1), 40).map((t) => <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center' }}><View style={{ flex: 1 }}><Row t={t} c={c} active={false} fav={isFav(t)} onFav={() => toggleFav(t)} onMore={() => setSheet(t)} onPress={() => play(t)} /></View><View><Pressable onPress={() => removeFromQueue(t)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>✕</Text></Pressable><Pressable onPress={() => moveQ(t.id, -1)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>▲</Text></Pressable><Pressable onPress={() => moveQ(t.id, 1)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>▼</Text></Pressable></View></View>)}
+          {queue.slice(Math.max(0, queue.findIndex((t) => t.id === cur.id) + 1), 40).map((t) => <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center' }}><View style={{ flex: 1 }}><Row t={t} c={c} active={false} fav={isFav(t)} onFav={() => toggleFav(t)} onMore={(pt) => { setAnchor(pt || null); setSheet(t); }} onPress={() => play(t)} /></View><View><Pressable onPress={() => removeFromQueue(t)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>✕</Text></Pressable><Pressable onPress={() => moveQ(t.id, -1)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>▲</Text></Pressable><Pressable onPress={() => moveQ(t.id, 1)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>▼</Text></Pressable></View></View>)}
         </View>}
       </ScrollView>
       </View>
@@ -1720,6 +1721,7 @@ function AppInner() {
           [isFav(sheet) ? 'הסרה מהמועדפים' : 'הוספה למועדפים', () => { toggleFav(sheet); closeSheet(); }],
           ['התחל תחנה מהשיר', () => { const t = sheet; closeSheet(); station(t); }],
           ['מעבר לאמן', () => { const t = sheet; closeSheet(); setFull(false); openArtist(t.artist, t.ch); }],
+          ['מעבר לאלבום', async () => { const t = sheet; closeSheet(); try { const ch = t.ch || ''; if (!ch) return; const rj = await wjson('/music-artist/' + ch); const rels = (rj.releases || []).filter((r) => r.plId).slice(0, 8); const hits = await Promise.all(rels.map((r) => wjson('/album/' + r.plId).then((j) => ((j.tracks || []).some((x) => x.id === t.id) ? r : null)).catch(() => null))); const al = hits.find(Boolean); if (al) { setFull(false); openAlbum({ title: al.title, plId: al.plId, thumb: al.thumb, artistName: t.artist }); } } catch (e) {} }],
           ['הצגת מילים', () => { const t = sheet; closeSheet(); if (!cur || cur.id !== t.id) play(t, [t]); setFull(true); setShowLyr(true); }],
           ['הצגת הקרדיטים', () => { const t = sheet; closeSheet(); setCredits(t); }],
           ['שיתוף', () => { share(sheet); closeSheet(); }],
