@@ -1468,7 +1468,7 @@ function AppInner() {
         <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.62)', alignItems: 'center', justifyContent: 'center' }}>
           <Pressable onPress={back} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} />
           <View style={{ width: 760, maxWidth: '92%', maxHeight: '94%', backgroundColor: c.bg, borderRadius: 26, borderWidth: 1, borderColor: c.line, overflow: 'hidden' }}>
-            <ScrollView><AlbumPage c={c} A={A} page={top} modal /></ScrollView>
+            <ScrollView showsVerticalScrollIndicator={false}><AlbumPage c={c} A={A} page={top} modal /></ScrollView>
           </View>
         </View>
       )}
