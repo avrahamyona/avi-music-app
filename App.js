@@ -784,6 +784,9 @@ export default function App() {
   const [stats, setStats] = useState({});
   const gen = useRef(0);
   const barW = useRef(1);
+  const volW = useRef(1);
+  const [vol, setVol] = useState(1);
+  const setVolume = (e) => { const v = Math.max(0, Math.min(1, e.nativeEvent.locationX / volW.current)); setVol(v); player.setVolume && player.setVolume(v); };
   const queueRef = useRef([]);
   const autoBusy = useRef(false);
   const curRef = useRef(null);
@@ -964,6 +967,13 @@ export default function App() {
         {!!status && <Text style={{ color: c.sub, marginTop: 6, textAlign: 'center' }}>{status}</Text>}
         <View style={{ width: '100%', maxWidth: 420, marginTop: 16 }}>{bar}</View>
         <View style={{ marginTop: 6 }}>{ctl(true)}</View>
+        <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', width: '100%', maxWidth: 420, marginTop: 6 }}>
+          <Icon name="vol0" size={16} color={c.sub} />
+          <Pressable onPress={setVolume} style={{ flex: 1, height: 28, justifyContent: 'center', marginHorizontal: 10 }} onLayout={(e) => { volW.current = e.nativeEvent.layout.width || 1; }}>
+            <View style={{ height: 4, borderRadius: 2, backgroundColor: c.line }}><View style={{ height: 4, borderRadius: 2, backgroundColor: c.sub, width: Math.round(vol * 100) + '%' }} /></View>
+          </Pressable>
+          <Icon name="vol1" size={16} color={c.sub} />
+        </View>
         <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', justifyContent: 'center', marginTop: 4 }}>
           <Pressable onPress={() => setShuffle((v) => !v)} style={{ padding: 10 }}><Icon name="shuffle" size={22} color={shuffle ? RED : c.sub} /></Pressable>
           <Pressable onPress={() => player.seek(Math.max(0, pos - 10))} style={{ padding: 10 }}><Text style={{ color: c.fg, fontSize: 14, fontWeight: '700' }}>-10</Text></Pressable>
