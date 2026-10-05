@@ -77,3 +77,5 @@ export async function toggle() {
 export async function seek(sec) { if (el) { try { el.currentTime = sec; } catch (e) {} } }
 
 export async function setVolume(v) { vol = Math.max(0, Math.min(1, v)); if (el) el.volume = vol; }
+
+export function cast() { try { if (el && el.remote && el.remote.prompt) { el.remote.prompt().catch(() => {}); return true; } } catch (e) {} return false; }
