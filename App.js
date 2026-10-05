@@ -1565,7 +1565,7 @@ function AppInner() {
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', direction: 'ltr' }}>
           <Pressable onPress={() => setSheet(cur)} style={{ width: 32, height: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name="dots" size={22} color={c.fg} /></Pressable>
-          <Pressable {...hold(1, () => go(1))} style={{ width: 40, height: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name="next" size={22} color={c.fg} /></Pressable>
+          <Pressable {...hold(1, () => go(1))} style={{ width: 40, height: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name="prev" size={22} color={c.fg} /></Pressable>
           <Pressable onPress={() => toggleP()} style={{ width: 40, height: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name={playing ? 'pause' : 'play'} size={24} color={c.fg} /></Pressable>
         </View>
       </Pressable>
@@ -1579,22 +1579,22 @@ function AppInner() {
       <Pressable onPress={() => setFull(false)} style={{ height: 41, alignSelf: 'center', width: 70, alignItems: 'center', justifyContent: 'center' }}><Icon name="chevdown" size={26} color={c.sub} /></Pressable>
       {!wideScreen && <Text style={{ position: 'absolute', top: 10, right: 12, color: c.sub, fontSize: 10 }}>{'v' + BUILD + ' · ' + (status || (playing ? 'מנגן' : 'מושהה'))}</Text>}
       <ScrollView style={{ backgroundColor: 'transparent' }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ alignItems: 'center', paddingHorizontal: wideScreen ? 13 : 0 }}>
-        <View style={{ height: wideScreen ? 257 : Math.min(448, height * 0.53), alignItems: 'center', justifyContent: 'center' }}>
-          {cur.thumb ? <PlayerArt uri={cur.thumb} playing={playing} wide={wideScreen} size={wideScreen ? 257 : Math.min(width - 64, height * 0.42)} /> : null}
+        <View style={{ height: wideScreen ? 257 : Math.min(width - 20, height * 0.44) + 78, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch' }}>
+          {cur.thumb ? <PlayerArt uri={cur.thumb} playing={playing} wide={wideScreen} size={wideScreen ? 257 : Math.min(width - 20, height * 0.44)} /> : null}
         </View>
-        <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', width: '100%', maxWidth: 434, marginTop: 14 }}>
+        <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', width: '100%', maxWidth: 434, marginTop: wideScreen ? 14 : 0, paddingHorizontal: wideScreen ? 0 : 18 }}>
           <Pressable onPress={() => setSheet(cur)} style={{ width: 37, height: 37, alignItems: 'center', justifyContent: 'center' }}><Icon name="dots" size={22} color={c.fg} /></Pressable>
           <Pressable onPress={() => toggleFav(cur)} style={{ width: 37, height: 37, alignItems: 'center', justifyContent: 'center', marginLeft: 12 }}><Icon name={isFav(cur) ? 'heartfill' : 'heart'} size={22} color={isFav(cur) ? RED : c.fg} /></Pressable>
           <View style={{ flex: 1, direction: 'rtl', marginLeft: 12 }}>
             <Text numberOfLines={1} style={{ color: c.fg, fontSize: 19, fontWeight: '700', textAlign: 'right' }}>{cur.title}</Text>
-            <Pressable onPress={() => setDestMenu((v) => !v)}><Text numberOfLines={1} style={{ color: RED, fontSize: 16, textAlign: 'right' }}>{cur.artist}</Text></Pressable>
+            <Pressable onPress={() => setDestMenu((v) => !v)}><Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.65)', fontSize: 17, textAlign: 'right' }}>{cur.artist}</Text></Pressable>
             {destMenu && <Pressable onPress={() => { setDestMenu(false); setFull(false); openArtist(cur.artist, cur.ch); }} style={{ position: 'absolute', right: 0, bottom: 52, minWidth: 190, backgroundColor: 'rgba(90,100,112,0.97)', borderRadius: 16, paddingVertical: 12, paddingHorizontal: 16, zIndex: 20 }}>
               <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', textAlign: 'right' }}>מעבר לאמן</Text>
               <Text numberOfLines={1} style={{ color: '#d6dae0', fontSize: 12, textAlign: 'right', marginTop: 2 }}>{cur.artist}</Text>
             </Pressable>}
           </View>
         </View>
-        <View style={{ width: '100%', maxWidth: 434, marginTop: 22 }}>{bar}</View>
+        <View style={{ width: '100%', maxWidth: 434, marginTop: wideScreen ? 22 : 34, paddingHorizontal: wideScreen ? 0 : 8 }}>{bar}</View>
         <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', justifyContent: wideScreen ? 'space-between' : 'space-evenly', width: '100%', maxWidth: 434, marginTop: wideScreen ? 24 : 30 }}>
           {wideScreen ? <Pressable onPress={() => setRepeat((r) => (r === 'off' ? 'all' : r === 'all' ? 'one' : 'off'))} style={{ width: 35, height: 35, alignItems: 'center', justifyContent: 'center' }}><View><Icon name="repeat" size={20} color={repeat === 'off' ? c.fg : RED} />{repeat === 'one' && <Text style={{ position: 'absolute', right: -2, top: -2, color: RED, fontSize: 9, fontWeight: '800' }}>1</Text>}</View></Pressable> : null}
           <Pressable {...hold(-1, () => go(-1))} style={{ width: 58, height: 64, alignItems: 'center', justifyContent: 'center' }}><Icon name="rw" size={36} color={c.fg} /></Pressable>
@@ -1616,6 +1616,7 @@ function AppInner() {
         </View>
         <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: 434, marginTop: 14, paddingHorizontal: 8 }}>
           <Pressable onPress={() => setShowLyr((v) => !v)} style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center' }}><Icon name="lyrics" size={24} color={showLyr ? RED : c.fg} /></Pressable>
+          <Pressable onPress={() => { try { const ok = player.cast && player.cast(); if (!ok) toast('AirPlay / שידור: בחר יציאת שמע ממרכז הבקרה של המכשיר'); } catch (e) {} }} style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center' }}><Icon name="cast" size={24} color={c.fg} /></Pressable>
           {wideScreen ? <Pressable onPress={() => share(cur)} style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center' }}><Icon name="share" size={24} color={c.fg} /></Pressable> : null}
           <Pressable onPress={() => setShowQ((v) => !v)} style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center' }}><Icon name="queue" size={24} color={showQ ? RED : c.fg} /></Pressable>
         </View>
