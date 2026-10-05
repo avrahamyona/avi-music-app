@@ -1,5 +1,5 @@
 import { Audio } from 'expo-av';
-import { WORKER } from './config';
+import { audioUrl } from './audioSrc';
 
 const subs = new Set();
 const emit = (s) => subs.forEach((f) => f(s));
@@ -48,7 +48,9 @@ export async function load(track) {
   if (sound) { await sound.unloadAsync().catch(() => {}); sound = null; }
   lastTrack = track;
   try {
-    const r = await Audio.Sound.createAsync({ uri: WORKER + '/audio/' + track.id }, { shouldPlay: true, volume: vol }, onStatus);
+    const src = await audioUrl(track.id);
+    if (!src) return false;
+    const r = await Audio.Sound.createAsync({ uri: src }, { shouldPlay: true, volume: vol }, onStatus);
     if (!r.status.isLoaded) { await r.sound.unloadAsync().catch(() => {}); return false; }
     sound = r.sound;
     meta(track, true);
