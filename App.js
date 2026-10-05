@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, TextInput, FlatList, Image, Pressable, StyleSheet, Animated, Easing,
-  PanResponder, useColorScheme, Platform, Share, Modal, ActivityIndicator, StatusBar, Linking, ScrollView, useWindowDimensions, Dimensions,
+  PanResponder, useColorScheme, Appearance, AppState, Platform, Share, Modal, ActivityIndicator, StatusBar, Linking, ScrollView, useWindowDimensions, Dimensions,
 } from 'react-native';
 import * as player from './player';
 import { bus } from './bus';
@@ -589,6 +589,7 @@ function SearchTab({ c, A }) {
   const [done, setDone] = useState('');
   const [scope, setScope] = useState('all');
   const [lyr, setLyr] = useState([]);
+  const inRef = useRef(null);
   useEffect(() => { store.get('recent', []).then(setRecent); }, []);
   const go = async (text) => {
     const x = String(text !== undefined ? text : q).trim(); if (!x) return;
@@ -614,8 +615,10 @@ function SearchTab({ c, A }) {
   for (const t of res) { const k = t.ch || norm(t.artist); if (!seen.has(k)) { seen.add(k); artists.push(t); } }
   return (
     <View>
-      <TextInput value={q} onChangeText={setQ} onSubmitEditing={() => go()} returnKeyType="search" placeholder="אמנים, שירים, מילים ועוד" placeholderTextColor={c.sub}
-        style={[s.input, { backgroundColor: c.card, color: c.fg, textAlign: 'right' }]} />
+      <Pressable onPress={() => inRef.current && inRef.current.focus()}>
+        <TextInput ref={inRef} value={q} onChangeText={setQ} onSubmitEditing={() => go()} returnKeyType="search" autoCorrect={false} autoCapitalize="none" clearButtonMode="while-editing" placeholder="אמנים, שירים, מילים ועוד" placeholderTextColor={c.sub}
+          style={[s.input, { backgroundColor: c.card, color: c.fg, textAlign: 'right' }]} />
+      </Pressable>
       <View style={{ flexDirection: 'row', direction: 'ltr', backgroundColor: c.card, borderRadius: 10, padding: 3, marginHorizontal: 16, marginBottom: 10 }}>
         {[['all', 'Avi Music'], ['lib', 'הספריה']].map(([k, n]) => (
           <Pressable key={k} onPress={() => { setScope(k); setDone(''); setRes([]); setErr(''); setLyr([]); }} style={{ flex: 1, paddingVertical: 7, borderRadius: 8, alignItems: 'center', backgroundColor: scope === k ? c.line : 'transparent' }}>
@@ -643,7 +646,7 @@ function SearchTab({ c, A }) {
           ))}
         </View>
       )}
-      {false && !done && scope === 'all' && !!recent.length && (
+      {!done && scope === 'all' && !!recent.length && (
         <View style={{ paddingHorizontal: 16 }}>
           <Text style={[s.h2, { color: c.fg, marginHorizontal: 0, marginBottom: 8 }]}>חיפושים אחרונים</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
@@ -1101,7 +1104,16 @@ function MoodPage({ c, A, page }) {
 }
 
 function AppInner() {
-  const system = useColorScheme();
+  const hookScheme = useColorScheme();
+  const [sysNow, setSysNow] = useState(Appearance.getColorScheme());
+  useEffect(() => {
+    const sub = Appearance.addChangeListener((p) => setSysNow(p.colorScheme));
+    const as = AppState.addEventListener('change', (st) => { if (st === 'active') setSysNow(Appearance.getColorScheme()); });
+    let mq = null, fn = null;
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.matchMedia) { mq = window.matchMedia('(prefers-color-scheme: dark)'); fn = (e) => setSysNow(e.matches ? 'dark' : 'light'); setSysNow(mq.matches ? 'dark' : 'light'); mq.addEventListener ? mq.addEventListener('change', fn) : mq.addListener(fn); }
+    return () => { sub && sub.remove && sub.remove(); as && as.remove && as.remove(); if (mq && fn) { mq.removeEventListener ? mq.removeEventListener('change', fn) : mq.removeListener(fn); } };
+  }, []);
+  const system = hookScheme || sysNow;
   const { width, height } = useWindowDimensions();
   const wideScreen = width >= 900;
   const [override, setOverride] = useState(null);
@@ -1357,7 +1369,7 @@ function AppInner() {
     </View>
   );
   const content = (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 110, alignItems: 'center' }}>
+    <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 110, alignItems: 'center' }}>
       <View onTouchStart={(e) => { swp.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY }; }} onTouchEnd={(e) => { const a = swp.current; swp.current = null; if (!a || !page || wideScreen) return; const dx = e.nativeEvent.pageX - a.x, dy = Math.abs(e.nativeEvent.pageY - a.y); if (a.x >= width - 28 && -dx > 70 && -dx > dy * 2 || a.x <= 28 && dx > 70 && dx > dy * 2) back(); }} style={{ width: '100%', maxWidth: wideScreen ? 940 : undefined }}>
       {!!upd && (
         <Pressable onPress={() => Linking.openURL(upd.url)} style={{ backgroundColor: '#1db954', padding: 10, margin: 12, borderRadius: 10 }}>
@@ -1422,7 +1434,7 @@ function AppInner() {
       <View style={{ width: wideScreen ? 500 : '100%', height: '100%', maxHeight: wideScreen ? 655 : '100%', backgroundColor: (Platform.OS === 'web' && tintBg(tint, dark, 1)) || c.bg, borderRadius: wideScreen ? 24 : 0, borderWidth: wideScreen ? 1 : 0, borderColor: c.line, padding: 20, paddingTop: Platform.OS === 'web' || Platform.OS === 'windows' || wideScreen ? 20 : 48 }}>
       <Pressable onPress={() => setFull(false)} style={{ height: 41, alignSelf: 'center', width: 70, alignItems: 'center', justifyContent: 'center' }}><Icon name="chevdown" size={26} color={c.sub} /></Pressable>
       {!wideScreen && <Text style={{ position: 'absolute', top: 10, right: 12, color: c.sub, fontSize: 10 }}>{'v' + BUILD + ' · ' + (status || (playing ? 'מנגן' : 'מושהה'))}</Text>}
-      <ScrollView contentContainerStyle={{ alignItems: 'center', paddingHorizontal: wideScreen ? 13 : 0 }}>
+      <ScrollView style={{ backgroundColor: 'transparent' }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ alignItems: 'center', paddingHorizontal: wideScreen ? 13 : 0 }}>
         <View style={{ height: wideScreen ? 257 : Math.min(448, height * 0.53), alignItems: 'center', justifyContent: 'center' }}>
           {cur.thumb ? <PlayerArt uri={cur.thumb} playing={playing} wide={wideScreen} size={wideScreen ? 257 : Math.min(width - 64, height * 0.42)} /> : null}
         </View>
@@ -1471,7 +1483,7 @@ function AppInner() {
           </View>}
         </View>}
         {showQ && <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginTop: 12 }}><Pressable onPress={() => setShuffle((v) => !v)} style={{ padding: 8 }}><Icon name="shuffle" size={20} color={shuffle ? RED : c.fg} /></Pressable><Pressable onPress={() => setRepeat((r) => (r === 'off' ? 'all' : r === 'all' ? 'one' : 'off'))} style={{ padding: 8 }}><Icon name="repeat" size={20} color={repeat === 'off' ? c.fg : RED} /></Pressable><Text style={[s.h2, { color: c.fg, flex: 1, textAlign: 'right' }]}>הבא בתור</Text></View>}
-        {showQ && <View style={{ width: '100%' }}>
+        {showQ && <View style={{ width: '100%', backgroundColor: 'transparent' }}>
           {queue.slice(Math.max(0, queue.findIndex((t) => t.id === cur.id) + 1), 40).map((t) => <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center' }}><View style={{ flex: 1 }}><Row t={t} c={c} active={false} fav={isFav(t)} onFav={() => toggleFav(t)} onMore={() => setSheet(t)} onPress={() => play(t)} /></View><View><Pressable onPress={() => moveQ(t.id, -1)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>▲</Text></Pressable><Pressable onPress={() => moveQ(t.id, 1)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>▼</Text></Pressable></View></View>)}
         </View>}
       </ScrollView>
