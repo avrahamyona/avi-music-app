@@ -194,8 +194,10 @@ function PlayerArt({ uri, playing, size, wide }) {
   const hi = hiThumb(uri);
   const [src, setSrc] = useState(hi);
   useEffect(() => { setSrc(hiThumb(uri)); }, [uri]);
-  const v = useRef(new Animated.Value(playing ? 1 : 0.8)).current;
-  useEffect(() => { Animated.timing(v, { toValue: playing ? 1 : 0.8, duration: 220, easing: Easing.bezier(0.25, 0.1, 0.25, 1), useNativeDriver: false }).start(); }, [playing]);
+  const ever = useRef(!!playing);
+  if (playing) ever.current = true;
+  const v = useRef(new Animated.Value(playing || !ever.current ? 1 : 0.8)).current;
+  useEffect(() => { Animated.timing(v, { toValue: playing || !ever.current ? 1 : 0.8, duration: 220, easing: Easing.bezier(0.25, 0.1, 0.25, 1), useNativeDriver: false }).start(); }, [playing]);
   return <Animated.Image source={{ uri: src }} resizeMode="cover" onError={() => { if (src !== uri) setSrc(uri); }} onLoad={(e) => { const w = e && e.nativeEvent && e.nativeEvent.source && e.nativeEvent.source.width; if (w && w <= 130 && src !== uri) setSrc(uri); }} style={{ width: size, height: size, borderRadius: wide ? 7 : 10, marginTop: 10, backgroundColor: '#8883', transform: [{ scale: v }] }} />;
 }
 
@@ -604,11 +606,18 @@ function SearchTab({ c, A }) {
   const [scope, setScope] = useState('all');
   const [lyr, setLyr] = useState([]);
   const inRef = useRef(null);
+  const [sug, setSug] = useState([]);
+  useEffect(() => {
+    const x = q.trim();
+    if (x.length < 2 || done || scope !== 'all') { setSug([]); return; }
+    let live = true;
+    const tm = setTimeout(() => { searchCached(x).then((r) => { if (live) setSug(r.slice(0, 40)); }).catch(() => {}); }, 220);
+    return () => { live = false; clearTimeout(tm); };
+  }, [q, done, scope]);
   useEffect(() => { store.get('recent', []).then(setRecent); }, []);
   const go = async (text) => {
     const x = String(text !== undefined ? text : q).trim(); if (!x) return;
     setQ(x); setBusy(true); setErr(''); setAlbums(null); setLyr([]); setDone(x);
-    setRecent((r) => { const n = [x, ...r.filter((y) => y !== x)].slice(0, 8); store.set('recent', n); return n; });
     if (scope === 'lib') {
       const nx = norm(x); const seenL = new Set();
       const l = [...(A.history || []), ...(A.favs || [])].filter((t) => t && t.id && (norm(t.title).includes(nx) || norm(t.artist).includes(nx)) && !seenL.has(t.id) && seenL.add(t.id));
@@ -630,7 +639,7 @@ function SearchTab({ c, A }) {
   return (
     <View>
       <Pressable onPress={() => inRef.current && inRef.current.focus()}>
-        <TextInput ref={inRef} value={q} onChangeText={setQ} onSubmitEditing={() => go()} returnKeyType="search" autoCorrect={false} autoCapitalize="none" clearButtonMode="while-editing" placeholder="אמנים, שירים, מילים ועוד" placeholderTextColor={c.sub}
+        <TextInput ref={inRef} value={q} onChangeText={(v) => { setQ(v); if (done) { setDone(''); setRes([]); setErr(''); } }} onSubmitEditing={() => go()} returnKeyType="search" autoCorrect={false} autoCapitalize="none" clearButtonMode="while-editing" placeholder="אמנים, שירים, מילים ועוד" placeholderTextColor={c.sub}
           style={[s.input, { backgroundColor: c.card, color: c.fg, textAlign: 'right' }]} />
       </Pressable>
       <View style={{ flexDirection: 'row', direction: 'ltr', backgroundColor: c.card, borderRadius: 10, padding: 3, marginHorizontal: 16, marginBottom: 10 }}>
@@ -640,7 +649,23 @@ function SearchTab({ c, A }) {
           </Pressable>
         ))}
       </View>
-      {!done && scope === 'all' && (
+      {!done && scope === 'all' && q.trim().length >= 2 && (
+        <View style={{ paddingHorizontal: 16 }}>
+          {sug.slice(0, 6).map((t) => <Row key={'s' + t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={(pt) => A.sheet(t, pt)} onPress={() => A.play(t, sug)} />)}
+          {(() => { const seenA = new Set(); const ar = []; for (const t of sug) { const k = t.ch || norm(t.artist); if (!seenA.has(k)) { seenA.add(k); ar.push(t); } } return ar.slice(0, 4).map((t) => (
+            <Pressable key={'a' + (t.ch || t.artist)} onPress={() => A.openArtist(t.artist, t.ch)} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.line }}>
+              <Text style={{ color: c.sub, fontSize: 20, marginHorizontal: 6 }}>‹</Text>
+              <View style={{ flex: 1, alignItems: 'flex-end', marginHorizontal: 12 }}>
+                <Text numberOfLines={1} style={{ color: c.fg, fontSize: 19, fontWeight: '700' }}>{String(t.artist).replace(/ - Topic$/i, '')}</Text>
+                <Text style={{ color: c.sub, fontSize: 13 }}>אמן</Text>
+              </View>
+              <View style={{ width: 64, height: 64, borderRadius: 32, overflow: 'hidden', backgroundColor: c.card }}>{t.thumb ? <Image source={{ uri: t.thumb }} style={{ width: 64, height: 64 }} /> : null}</View>
+            </Pressable>
+          )); })()}
+          <Pressable onPress={() => go()} style={{ paddingVertical: 14 }}><Text style={{ color: RED, fontSize: 16, textAlign: 'right', fontWeight: '700' }}>{'חפש "' + q.trim() + '"'}</Text></Pressable>
+        </View>
+      )}
+      {!done && scope === 'all' && q.trim().length < 2 && (
         <View style={{ paddingHorizontal: 16 }}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
             {GENRES.map(([n, qq], i) => (
@@ -658,18 +683,6 @@ function SearchTab({ c, A }) {
               <Text style={{ color: c.fg, fontSize: 16, textAlign: 'right' }}>{n}</Text>
             </Pressable>
           ))}
-        </View>
-      )}
-      {!done && scope === 'all' && !!recent.length && (
-        <View style={{ paddingHorizontal: 16 }}>
-          <Text style={[s.h2, { color: c.fg, marginHorizontal: 0, marginBottom: 8 }]}>חיפושים אחרונים</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-            {recent.map((r) => (
-              <Pressable key={r} onPress={() => go(r)} style={{ backgroundColor: c.card, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 6, marginLeft: 8, marginBottom: 8 }}>
-                <Text style={{ color: c.fg }}>{r}</Text>
-              </Pressable>
-            ))}
-          </View>
         </View>
       )}
       {!!done && scope === 'all' && (
@@ -1303,6 +1316,9 @@ function AppInner() {
   const lessRef = useRef({}); lessRef.current = lessSug;
   const pendingRef = useRef(null);
   const autoBusy = useRef(false);
+  const prevStack = useRef([]);
+  const fwdStack = useRef([]);
+  const navRef = useRef(false);
   const curRef = useRef(null);
   const playRef = useRef(null);
   queueRef.current = queue;
@@ -1382,6 +1398,16 @@ function AppInner() {
   });
   const go = (d, auto) => {
     if (d < 0 && !auto && posRef.current >= 3 && curRef.current) { player.seek(0); setPos(0); return; }
+    if (!auto && d < 0 && prevStack.current.length && curRef.current) {
+      const p = prevStack.current.pop(); fwdStack.current.push(curRef.current);
+      if (!queueRef.current.some((x) => x.id === p.id)) { const nq = [p, ...queueRef.current]; setQueue(nq); queueRef.current = nq; }
+      navRef.current = true; playRef.current(p); return;
+    }
+    if (!auto && d > 0 && fwdStack.current.length && curRef.current) {
+      const n = fwdStack.current.pop(); prevStack.current.push(curRef.current);
+      if (!queueRef.current.some((x) => x.id === n.id)) { const nq = [...queueRef.current, n]; setQueue(nq); queueRef.current = nq; }
+      navRef.current = true; playRef.current(n); return;
+    }
     const list = queueRef.current;
     const cc = curRef.current;
     const i = cc ? list.findIndex((t) => t.id === cc.id) : -1;
@@ -1395,14 +1421,32 @@ function AppInner() {
     let n = list[i + d];
     if (!n && repeatRef.current === 'all' && d > 0) n = list[0];
     if (n) { playRef.current(n); return; }
-    if (auto && d > 0 && autoNextRef.current && !autoBusy.current) {
+    if (d > 0 && autoNextRef.current && !autoBusy.current) {
       autoBusy.current = true;
       const an = String(cc.artist || '').replace(/ - Topic$/i, '');
-      searchTracks(an + ' songs').then((r) => {
+      (async () => {
+        const pool = [];
+        try { pool.push(...clean(await searchTracks(an + ' songs'))); } catch (e) {}
+        try {
+          if (cc.ch) {
+            const sim = await wjson('/similar-artists/' + cc.ch).then((j) => j.artists || []).catch(() => []);
+            const got = await Promise.all(sim.slice(0, 4).map((x) => searchTracks(x.name + ' songs').then((r) => clean(r).slice(0, 6)).catch(() => [])));
+            got.forEach((g) => pool.push(...g));
+          }
+        } catch (e) {}
         const seen = new Set(queueRef.current.map((x) => x.id));
-        const more = clean(r).filter((x) => !seen.has(x.id) && !lessRef.current[x.id]).slice(0, 15);
+        const titles = new Set(queueRef.current.map((x) => norm(x.title)));
+        titles.add(norm(cc.title));
+        const more = [];
+        for (const x of pool) {
+          const nt = norm(x.title);
+          if (!x.id || seen.has(x.id) || lessRef.current[x.id]) continue;
+          if (titles.has(nt) || [...titles].some((q) => q.length > 3 && (nt.includes(q) || q.includes(nt)))) continue;
+          seen.add(x.id); titles.add(nt); more.push(x);
+          if (more.length >= 15) break;
+        }
         if (more.length) { const nq = [...queueRef.current, ...more]; setQueue(nq); queueRef.current = nq; playRef.current(more[0]); }
-      }).catch(() => {}).finally(() => { autoBusy.current = false; });
+      })().catch(() => {}).finally(() => { autoBusy.current = false; });
     }
   };
 
@@ -1410,6 +1454,7 @@ function AppInner() {
   const play = async (t, list) => {
     if (list) { setQueue(list); queueRef.current = list; }
     const g = ++gen.current;
+    if (navRef.current) navRef.current = false; else { if (curRef.current && curRef.current.id !== t.id) { prevStack.current.push(curRef.current); if (prevStack.current.length > 50) prevStack.current.shift(); } fwdStack.current = []; }
     setCur(t); curRef.current = t; setStatus('טוען...'); setPos(0); setDur(0);
     setHistory((h) => { const n = [t, ...h.filter((x) => x.id !== t.id)].slice(0, 60); store.set('history', n); return n; });
     setStats((st) => {
