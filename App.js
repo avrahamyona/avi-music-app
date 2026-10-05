@@ -138,7 +138,7 @@ const TABS = [
 function Card({ t, onPress, c, wide, sub }) {
   const w = wide ? 280 : 158;
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ width: w, marginLeft: 14, opacity: pressed ? 0.7 : 1 })}>
+    <Pressable onPress={onPress} style={({ pressed, hovered }) => ({ width: w, marginLeft: 14, opacity: pressed ? 0.7 : 1, transform: [{ translateY: hovered ? -4 : 0 }], ...(Platform.OS === 'web' ? { transition: 'transform .18s ease' } : {}) })}>
       {t.thumb ? <Image source={{ uri: t.thumb }} style={{ width: w, height: wide ? 158 : 158, borderRadius: 8, backgroundColor: c.card }} />
         : <View style={{ width: w, height: 158, borderRadius: 8, backgroundColor: c.card }} />}
       <Text numberOfLines={1} style={{ color: c.fg, fontWeight: '600', marginTop: 6, textAlign: 'right' }}>{t.title}</Text>
@@ -157,19 +157,20 @@ function HScroll({ children, contentContainerStyle, ...rest }) {
   const ref = useRef(null);
   const off = useRef(0);
   const [w, setW] = useState(0);
+  const [hov, setHov] = useState(false);
   const web = Platform.OS === 'web';
   const step = (d) => { const n = ref.current && ref.current.getScrollableNode && ref.current.getScrollableNode(); if (n && n.scrollBy) n.scrollBy({ left: -d * Math.max(200, w * 0.8), behavior: 'smooth' }); };
   const arrow = (d, side) => (
-    <Pressable onPress={() => step(d)} style={{ position: 'absolute', top: '40%', [side]: 6, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(40,40,44,0.85)', alignItems: 'center', justifyContent: 'center', zIndex: 5 }}>
+    <Pressable onPress={() => step(d)} style={{ position: 'absolute', top: '40%', [side]: -12, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(40,40,44,0.85)', alignItems: 'center', justifyContent: 'center', zIndex: 5 }}>
       <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{d < 0 ? '›' : '‹'}</Text>
     </Pressable>
   );
   return (
-    <View onLayout={(e) => setW(e.nativeEvent.layout.width)}>
+    <Pressable onHoverIn={() => setHov(true)} onHoverOut={() => setHov(false)} onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ cursor: 'default' }}>
       <ScrollView ref={ref} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={contentContainerStyle} scrollEventThrottle={16} onScroll={(e) => { off.current = e.nativeEvent.contentOffset.x; }} {...rest}>{children}</ScrollView>
-      {web && w >= 700 && arrow(-1, 'right')}
-      {web && w >= 700 && arrow(1, 'left')}
-    </View>
+      {web && hov && w >= 700 && arrow(-1, 'right')}
+      {web && hov && w >= 700 && arrow(1, 'left')}
+    </Pressable>
   );
 }
 
@@ -1161,7 +1162,7 @@ function MoodTiles({ c, A }) {
     <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
       {MOODS.map((m, i) => (
         <Pressable key={m.name} onPress={() => A.open({ kind: 'mood', mood: m, color: MOOD_COLORS[i % MOOD_COLORS.length], title: m.name })}
-          style={{ width: 150, height: 110, borderRadius: 12, marginLeft: 12, padding: 12, justifyContent: 'flex-end', backgroundColor: MOOD_COLORS[i % MOOD_COLORS.length] }}>
+          style={{ width: 176, height: 128, borderRadius: 14, marginLeft: 12, padding: 14, justifyContent: 'flex-end', backgroundColor: MOOD_COLORS[i % MOOD_COLORS.length] }}>
           <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800', textAlign: 'right' }}>{m.name}</Text>
           <Text numberOfLines={1} style={{ color: '#fff', opacity: 0.85, fontSize: 12, textAlign: 'right' }}>{m.desc}</Text>
         </Pressable>
