@@ -1079,7 +1079,7 @@ function AppInner() {
         <View style={{ flex: 1 }}>
           {!wideScreen && (
             <View style={s.top}>
-              <Text style={[s.title, { color: c.fg }]}>Avi Music</Text>
+              <View style={{ flex: 1 }} />
               {Badge}
               <Pressable onPress={() => setOverride(dark ? 'light' : 'dark')} style={s.theme}><Text style={{ color: c.fg, fontSize: 20 }}>{dark ? '☀️' : '🌙'}</Text></Pressable>
             </View>
