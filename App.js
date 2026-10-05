@@ -764,7 +764,7 @@ function AppInner() {
 
   const [upd, setUpd] = useState(null);
   useEffect(() => {
-    const pre = Platform.OS === 'windows' ? 'win-' : Platform.OS === 'android' ? 'app-' : null;
+    const pre = Platform.OS === 'windows' ? 'win-' : Platform.OS === 'android' ? 'app-' : Platform.OS === 'ios' ? 'ios-' : null;
     const mine = parseInt(BUILD, 10);
     if (!pre || !mine) return;
     fetch('https://api.github.com/repos/avrahamyona/avi-music-app/releases?per_page=30')
@@ -774,7 +774,7 @@ function AppInner() {
         for (const rel of list || []) {
           if (!rel.tag_name || rel.tag_name.indexOf(pre) !== 0) continue;
           const n = parseInt(rel.tag_name.slice(pre.length), 10);
-          const asset = (rel.assets || []).find((x) => /\.(apk|exe)$/i.test(x.name));
+          const asset = (rel.assets || []).find((x) => /\.(apk|exe|ipa)$/i.test(x.name));
           if (n > mine && asset && (!best || n > best.n)) best = { n, url: asset.browser_download_url };
         }
         if (best) setUpd(best);
