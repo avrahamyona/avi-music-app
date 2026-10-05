@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { WORKER } from './config';
 
 // Resolves a playable URL for the SAME song id. The worker's extraction can fail on some
@@ -21,6 +22,8 @@ function pick(j) {
 }
 
 export async function audioUrl(id) {
+  // On web a fetch probe is blocked by CORS even when the audio element loads fine, so use the worker URL directly (same as the website).
+  if (Platform.OS === 'web') return WORKER + '/audio/' + id;
   for (let a = 0; a < 2; a++) {
     try {
       const r = await timeout(fetch(WORKER + '/audio/' + id, { headers: { Range: 'bytes=0-0' } }), 12000);
@@ -34,7 +37,7 @@ export async function audioUrl(id) {
     PIPED.forEach((base) => {
       timeout(fetch(base + '/streams/' + id).then((r) => { if (!r.ok) throw new Error('http ' + r.status); return r.json(); }), 9000)
         .then((j) => { const u = pick(j); if (!done) { done = true; resolve(u); } })
-        .catch(() => { left -= 1; if (left === 0 && !done) resolve(null); });
+        .catch(() => { left -= 1; if (left === 0 && !done) resolve(WORKER + '/audio/' + id); });
     });
   });
 }
