@@ -348,7 +348,7 @@ function Library({ c, A }) {
     <View>
       {!sec ? (
         <View style={{ marginTop: 8 }}>
-          {[['fav', 'שירים אהובים (' + (A.favs || []).length + ')'], ['hist', 'הושמע לאחרונה (' + (A.history || []).length + ')'], ['stats', 'ההאזנה שלך · יום, שבוע, חודש והכול'], ['pls', 'ייבוא פלייליסט מיוטיוב'], ['pls', 'רשימות (' + (A.playlists || []).length + ')']].map(([k, n], i) => (
+          {[['fav', 'שירים אהובים (' + (A.favs || []).length + ')'], ['hist', 'הושמע לאחרונה (' + (A.history || []).length + ')'], ['artists', 'אמנים (' + ((A.follows || {}).artists || []).length + ')'], ['albums', 'אלבומים (' + ((A.follows || {}).albums || []).length + ')'], ['stats', 'ההאזנה שלך · יום, שבוע, חודש והכול'], ['pls', 'ייבוא פלייליסט מיוטיוב'], ['pls', 'רשימות (' + (A.playlists || []).length + ')']].map(([k, n], i) => (
             <Pressable key={n} onPress={() => setSec(k)} style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#8884' }}>
               <Text style={{ color: c.sub, fontSize: 20 }}>‹</Text>
               <Text style={{ flex: 1, color: c.fg, fontSize: 16, textAlign: 'right' }}>{n}</Text>
@@ -360,6 +360,16 @@ function Library({ c, A }) {
       )}
       {(sec === 'fav' || sec === 'hist') && !list.length && <Text style={{ color: c.sub, textAlign: 'center', marginTop: 40 }}>{sec === 'fav' ? 'עוד אין מועדפים. הקש על הלב ליד שיר.' : 'עוד לא הושמע כלום.'}</Text>}
       {(sec === 'fav' || sec === 'hist') && list.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={(p) => A.sheet(t, p)} onPress={() => A.play(t, list)} />)}
+      {sec === 'artists' && (((A.follows || {}).artists || []).length ? A.follows.artists.map((a) => (
+        <Pressable key={a.ch || a.title} onPress={() => A.openArtist(a.title, a.ch)} style={s.row}>
+          {a.thumb ? <Image source={{ uri: a.thumb }} style={[s.thumb, { borderRadius: 22 }]} /> : <View style={[s.thumb, { borderRadius: 22 }]} />}
+          <Text style={{ flex: 1, marginHorizontal: 12, color: c.fg, fontSize: 16, fontWeight: '600', textAlign: 'right' }}>{a.title}</Text>
+        </Pressable>)) : <Text style={{ color: c.sub, textAlign: 'center', marginTop: 40 }}>עוד לא עקבת אחרי אמנים. הקש על עקוב בדף אמן.</Text>)}
+      {sec === 'albums' && (((A.follows || {}).albums || []).length ? A.follows.albums.map((a) => (
+        <Pressable key={a.plId} onPress={() => A.openAlbum({ title: a.title, plId: a.plId, thumb: a.thumb, artistName: a.artist })} style={s.row}>
+          {a.thumb ? <Image source={{ uri: a.thumb }} style={s.thumb} /> : <View style={s.thumb} />}
+          <View style={{ flex: 1, marginHorizontal: 12 }}><Text numberOfLines={1} style={{ color: c.fg, fontWeight: '600', textAlign: 'right' }}>{a.title}</Text><Text numberOfLines={1} style={{ color: c.sub, textAlign: 'right' }}>{a.artist}</Text></View>
+        </Pressable>)) : <Text style={{ color: c.sub, textAlign: 'center', marginTop: 40 }}>עוד לא שמרת אלבומים.</Text>)}
       {sec === 'pls' && (
         <View>
           <TextInput value={url} onChangeText={setUrl} onSubmitEditing={importPl} placeholder="הדבק קישור לפלייליסט ציבורי של יוטיוב" placeholderTextColor={c.sub}
@@ -595,6 +605,8 @@ function ArtistPage({ c, A, page }) {
         <Pressable disabled={!songs || !songs.length} onPress={() => A.play(songs[0], songs)} style={{ backgroundColor: RED, borderRadius: 20, paddingHorizontal: 28, paddingVertical: 8, marginTop: 10 }}>
           <Text style={{ color: '#fff', fontWeight: '700' }}>{'▶ נגן'}</Text>
         </Pressable>
+        {(() => { const fo = { title: page.title, ch: ch || page.ch || '', thumb: cover ? cover.thumb : '' }; const on = (A.follows.artists || []).some((x) => (x.ch || x.title) === (fo.ch || fo.title)); return (
+          <Pressable onPress={() => A.toggleFollow('artists', fo)} style={{ borderWidth: 1, borderColor: on ? RED : c.line, borderRadius: 20, paddingHorizontal: 22, paddingVertical: 6, marginTop: 8 }}><Text style={{ color: on ? RED : c.fg, fontWeight: '700' }}>{on ? 'עוקב ✓' : '+ עקוב'}</Text></Pressable>); })()}
       </View>
       <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 6 }]}>שירים</Text>
       {!songs && <ActivityIndicator color={RED} style={{ margin: 14 }} />}
@@ -650,6 +662,8 @@ function AlbumPage({ c, A, page }) {
         <Pressable disabled={!tracks || !tracks.length} onPress={() => A.play(tracks[0], tracks)} style={{ backgroundColor: RED, borderRadius: 20, paddingHorizontal: 28, paddingVertical: 8, marginTop: 10 }}>
           <Text style={{ color: '#fff', fontWeight: '700' }}>{'▶ נגן'}</Text>
         </Pressable>
+        {(() => { const fo = { title: page.title, plId: page.plId, thumb: page.thumb, artist: page.artist }; const on = (A.follows.albums || []).some((x) => x.plId === fo.plId); return (
+          <Pressable onPress={() => A.toggleFollow('albums', fo)} style={{ borderWidth: 1, borderColor: on ? RED : c.line, borderRadius: 20, paddingHorizontal: 22, paddingVertical: 6, marginTop: 8 }}><Text style={{ color: on ? RED : c.fg, fontWeight: '700' }}>{on ? 'נשמר ✓' : '+ שמור בספריה'}</Text></Pressable>); })()}
       </View>
       {!tracks && <ActivityIndicator color={RED} style={{ margin: 14 }} />}
       {!!err && <Text style={{ color: c.sub, textAlign: 'center', margin: 14 }}>{err}</Text>}
@@ -924,6 +938,7 @@ function AppInner() {
   const [repeat, setRepeat] = useState('off');
   const [sheet, setSheet] = useState(null);
   const [anchor, setAnchor] = useState(null);
+  const [follows, setFollows] = useState({ artists: [], albums: [] });
   const swp = useRef(null);
   const [pick, setPick] = useState(null);
   const shuffleRef = useRef(false);
@@ -950,6 +965,7 @@ function AppInner() {
     store.get('history', []).then(setHistory);
     store.get('favs', []).then(setFavs);
     store.get('playlists', []).then(setPlaylists);
+    store.get('follows', { artists: [], albums: [] }).then((f) => setFollows({ artists: f.artists || [], albums: f.albums || [] }));
     store.get('stats', {}).then(setStats);
     player.init().catch(() => {});
     const off = player.on((st) => {
@@ -1060,6 +1076,12 @@ function AppInner() {
   playRef.current = play;
   const isFav = (t) => favs.some((x) => x.id === t.id);
   const toggleFav = (t) => setFavs((f) => { const n = f.some((x) => x.id === t.id) ? f.filter((x) => x.id !== t.id) : [t, ...f]; store.set('favs', n); return n; });
+  const toggleFollow = (kind, o) => setFollows((f) => {
+    const key = kind === 'artists' ? (x) => (x.ch || x.title) === (o.ch || o.title) : (x) => x.plId === o.plId;
+    const has = f[kind].some(key);
+    const n = { ...f, [kind]: has ? f[kind].filter((x) => !key(x)) : [o, ...f[kind]] };
+    store.set('follows', n); return n;
+  });
   const addPlaylist = (p) => setPlaylists((x) => { const n = [p, ...x.filter((y) => y.id !== p.id)]; store.set('playlists', n); return n; });
   const removePlaylist = (id) => setPlaylists((x) => { const n = x.filter((y) => y.id !== id); store.set('playlists', n); return n; });
   const queueNext = (t) => setQueue((q) => { const cc = curRef.current; const base = q.filter((x) => x.id !== t.id); const i = cc ? base.findIndex((x) => x.id === cc.id) : -1; base.splice(i + 1, 0, t); queueRef.current = base; return base; });
@@ -1081,7 +1103,7 @@ function AppInner() {
   const back = () => setPages((x) => x.slice(0, -1));
   const openArtist = (name, ch) => open({ kind: 'artist', title: String(name).replace(/ - Topic$/i, ''), ch: ch || '' });
   const openAlbum = (al) => open({ kind: 'album', title: al.title, plId: al.plId, thumb: al.thumb, artist: al.artistName || '' });
-  const A = { sheet: (t, p) => { setAnchor(p || null); setSheet(t); }, cur, play, isFav, toggleFav, open, back, openArtist, openAlbum, history, favs, playlists, stats, addPlaylist, removePlaylist, newPlaylist, renamePlaylist };
+  const A = { follows, toggleFollow, sheet: (t, p) => { setAnchor(p || null); setSheet(t); }, cur, play, isFav, toggleFav, open, back, openArtist, openAlbum, history, favs, playlists, stats, addPlaylist, removePlaylist, newPlaylist, renamePlaylist };
 
   const seek = (e) => {
     if (!dur) return;
