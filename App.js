@@ -9,7 +9,7 @@ import { bus } from './bus';
 import * as store from './storage';
 import { WORKER } from './config';
 import { MOODS } from './moods';
-import Icon from './Icon';
+import Icon, { MoodArt, MOOD_KIND } from './Icon';
 
 const VERSION = '0.2.0';
 const BUILD = (typeof process !== 'undefined' && process.env && process.env.EXPO_PUBLIC_BUILD) || 'dev';
@@ -265,10 +265,10 @@ function Shelf({ title, query, queries, c, A, wide, rows, limit = 12, hideIfEmpt
       Promise.all(queries.map((q) => searchCached(q).catch(() => []))).then((all) => {
         if (!live) return;
         const out = []; const ids = new Set(); const titles = new Set(); const perArtist = {};
-        for (let k = 0; k < 4; k++) for (const lst of all) {
+        for (let k = 0; k < 6; k++) for (const lst of all) {
           const t = lst[k]; if (!t || ids.has(t.id)) continue;
           const an = norm(String(t.artist).replace(/ - Topic$/i, '')); const nt = norm(t.title);
-          if ((perArtist[an] || 0) >= 2 || titles.has(nt)) continue;
+          if ((perArtist[an] || 0) >= 1 || titles.has(nt) || (String(t.title).includes(' - ') && nt.includes(an)) || /^(מוזיקה|music)\s/i.test(t.title)) continue;
           ids.add(t.id); titles.add(nt); perArtist[an] = (perArtist[an] || 0) + 1; out.push(t);
         }
         setItems(out);
@@ -346,19 +346,6 @@ function Home({ c, A }) {
       {!!seeds.length && <PersonalAlbums c={c} A={A} names={seeds.slice(0, 6)} chs={seeds.slice(0, 3).map((n) => { const tk = byArtist(n); return tk && tk.ch; }).filter(Boolean)} />}
       {!!seeds.length && (
         <View style={{ marginTop: 22 }}>
-          <Text style={[s.h2, { color: c.fg, marginHorizontal: 16, textAlign: 'right' }]}>תחנות מומלצות לפי האמנים שלך</Text>
-          <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
-            {seeds.slice(0, 6).map((n) => { const tk = byArtist(n); return (
-              <Pressable key={n} onPress={async () => { try { const r = await searchCached(n + ' שירים'); if (r.length) A.play(r[0], [r[0], ...r.slice(1).sort(() => Math.random() - 0.5)]); } catch (e) {} }} style={{ width: 110, marginLeft: 12, alignItems: 'center' }}>
-                <View style={{ width: 100, height: 100, borderRadius: 50, overflow: 'hidden', backgroundColor: c.card }}>{tk && tk.thumb ? <Image source={{ uri: tk.thumb }} style={{ width: 100, height: 100 }} /> : null}</View>
-                <Text numberOfLines={1} style={{ color: c.fg, fontWeight: '700', fontSize: 14, marginTop: 8 }}>{n}</Text>
-                <Text numberOfLines={1} style={{ color: c.sub, fontSize: 12 }}>{'התחנה של ' + n}</Text>
-              </Pressable>); })}
-          </HScroll>
-        </View>
-      )}
-      {!!seeds.length && (
-        <View style={{ marginTop: 22 }}>
           <Text style={[s.h2, { color: c.fg, marginHorizontal: 16, textAlign: 'right' }]}>אמנים מועדפים</Text>
           <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
             {seeds.slice(0, 6).map((n) => { const tk = byArtist(n); return (
@@ -399,6 +386,19 @@ function Home({ c, A }) {
       <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
         {FRIENDS.map((m, i) => <MoodTile key={m.name} m={m} i={i + 3} A={A} />)}
       </HScroll>
+      {!!seeds.length && (
+        <View style={{ marginTop: 22 }}>
+          <Text style={[s.h2, { color: c.fg, marginHorizontal: 16, textAlign: 'right' }]}>תחנות מומלצות לפי האמנים שלך</Text>
+          <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
+            {seeds.slice(0, 6).map((n) => { const tk = byArtist(n); return (
+              <Pressable key={n} onPress={async () => { try { const r = await searchCached(n + ' שירים'); if (r.length) A.play(r[0], [r[0], ...r.slice(1).sort(() => Math.random() - 0.5)]); } catch (e) {} }} style={{ width: 110, marginLeft: 12, alignItems: 'center' }}>
+                <View style={{ width: 100, height: 100, borderRadius: 50, overflow: 'hidden', backgroundColor: c.card }}>{tk && tk.thumb ? <Image source={{ uri: tk.thumb }} style={{ width: 100, height: 100 }} /> : null}</View>
+                <Text numberOfLines={1} style={{ color: c.fg, fontWeight: '700', fontSize: 14, marginTop: 8 }}>{n}</Text>
+                <Text numberOfLines={1} style={{ color: c.sub, fontSize: 12 }}>{'התחנה של ' + n}</Text>
+              </Pressable>); })}
+          </HScroll>
+        </View>
+      )}
     </View>
   );
 }
@@ -1187,12 +1187,14 @@ const FRIENDS = [
 ];
 function MoodTile({ m, i, A }) {
   const [img, setImg] = useState(null);
-  useEffect(() => { let live = true; resolveMood({ songs: m.songs.slice(0, 2) }).then((r) => { if (live && r[0]) setImg(r[0].thumb); }).catch(() => {}); return () => { live = false; }; }, [m.name]);
+  const kind = MOOD_KIND[m.name];
+  useEffect(() => { if (kind) return undefined; let live = true; resolveMood({ songs: m.songs.slice(0, 2) }).then((r) => { if (live && r[0]) setImg(r[0].thumb); }).catch(() => {}); return () => { live = false; }; }, [m.name]);
   const col = MOOD_COLORS[i % MOOD_COLORS.length];
   return (
     <Pressable onPress={() => A.open({ kind: 'mood', mood: m, color: col, title: m.name })}
       style={({ hovered }) => ({ width: 176, height: 128, borderRadius: 14, marginLeft: 12, overflow: 'hidden', justifyContent: 'flex-end', backgroundColor: col, transform: [{ translateY: hovered ? -4 : 0 }], ...(Platform.OS === 'web' ? { transition: 'transform .18s ease' } : {}) })}>
-      {img ? <Image source={{ uri: img }} style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, opacity: 0.45 }} /> : null}
+      {kind ? <MoodArt kind={kind} /> : null}
+      {!kind && img ? <Image source={{ uri: img }} style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, opacity: 0.45 }} /> : null}
       <View style={{ padding: 14 }}>
         <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800', textAlign: 'right' }}>{m.name}</Text>
         <Text numberOfLines={1} style={{ color: '#fff', opacity: 0.9, fontSize: 12, textAlign: 'right' }}>{m.desc}</Text>
