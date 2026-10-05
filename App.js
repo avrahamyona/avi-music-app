@@ -145,7 +145,7 @@ function PlayerArt({ uri, playing, size, wide }) {
 
 const ptOf = (e) => (e && e.nativeEvent && e.nativeEvent.pageX != null ? { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY } : null);
 let swipeQueue = null;
-function Row({ t, onPress, c, active, fav, onFav, onMore }) {
+function Row({ t, onPress, c, active, fav, onFav, onMore, num }) {
   const dx = useRef(new Animated.Value(0)).current;
   const [reveal, setReveal] = useState(false);
   const tr = useRef(t); tr.current = t;
@@ -164,13 +164,13 @@ function Row({ t, onPress, c, active, fav, onFav, onMore }) {
       {reveal && <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: '#2a7de1', justifyContent: 'center', alignItems: 'center' }}><Text style={{ color: '#fff', fontWeight: '700' }}>הבא בתור</Text></View>}
       <Animated.View {...pan.panHandlers} style={{ transform: [{ translateX: dx }], backgroundColor: c.bg }}>
     <Pressable onPress={onPress} onLongPress={(e) => onMore && onMore(ptOf(e))} style={({ pressed }) => [s.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#8884', opacity: pressed ? 0.6 : 1 }]}>
-      {t.thumb ? <Image source={{ uri: t.thumb }} style={s.thumb} /> : <View style={s.thumb} />}
+      {num ? <Text style={{ color: c.sub, fontSize: 15, width: 34, textAlign: 'center' }}>{num}</Text> : t.thumb ? <Image source={{ uri: t.thumb }} style={s.thumb} /> : <View style={s.thumb} />}
       <View style={{ flex: 1, marginHorizontal: 12 }}>
         <Text numberOfLines={1} style={{ color: active ? RED : c.fg, fontSize: 15, fontWeight: '500', textAlign: 'right' }}>{t.title}</Text>
         <Text numberOfLines={1} style={{ color: c.sub, fontSize: 13, marginTop: 1, textAlign: 'right' }}>{t.artist}</Text>
       </View>
       {!!t.dur && <Text style={{ color: c.sub, fontSize: 14, marginHorizontal: 6, writingDirection: 'ltr' }}>{fmt(t.dur)}</Text>}
-      <Pressable onPress={onFav} style={{ padding: 8 }}><Icon name={fav ? 'heartfill' : 'heart'} size={18} color={fav ? RED : c.sub} /></Pressable>
+      {!num && <Pressable onPress={onFav} style={{ padding: 8 }}><Icon name={fav ? 'heartfill' : 'heart'} size={18} color={fav ? RED : c.sub} /></Pressable>}
       {!!onMore && <Pressable onPress={(e) => onMore(ptOf(e))} style={{ padding: 8 }}><Icon name="dots" size={18} color={c.sub} /></Pressable>}
     </Pressable>
       </Animated.View>
@@ -515,7 +515,7 @@ function SearchTab({ c, A }) {
       )}
       {!!done && (
         <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginBottom: 6 }}>
-          {[['all', 'הכל'], ['songs', 'שירים'], ['artists', 'אמנים'], ['albums', 'אלבומים']].map(([k, n]) => (
+          {[['all', 'תוצאות מובילות'], ['songs', 'שירים'], ['artists', 'אמנים'], ['albums', 'אלבומים']].map(([k, n]) => (
             <Pressable key={k} onPress={() => setPill(k)} style={{ paddingVertical: 5, paddingHorizontal: 14, borderRadius: 16, marginLeft: 8, backgroundColor: pill === k ? RED : c.card }}>
               <Text style={{ color: pill === k ? '#fff' : c.fg, fontWeight: '600' }}>{n}</Text>
             </Pressable>
@@ -560,167 +560,29 @@ function ListPage({ c, A, page }) {
   const pl = page.pid ? A.playlists.find((p) => p.id === page.pid) : null;
   const items = pl ? pl.tracks : page.items;
   const [nm, setNm] = useState(page.title);
+  const circ = { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(120,120,128,0.28)', alignItems: 'center', justifyContent: 'center' };
+  const pill = { flex: 1, height: 44, borderRadius: 12, backgroundColor: c.card, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' };
+  const doShuffle = () => { if (!tracks || !tracks.length) return; const l = tracks.slice(); for (let i = l.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [l[i], l[j]] = [l[j], l[i]]; } A.play(l[0], l); };
   return (
-    <View>
-      <Pressable onPress={A.back} style={{ padding: 16 }}><Text style={{ color: RED, fontSize: 16, textAlign: 'right' }}>{'› חזרה'}</Text></Pressable>
-      <Text style={[s.large, { color: c.fg }]}>{page.title}</Text>
-      {!!items.length && (
-        <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginTop: 8 }}>
-          <Pressable onPress={() => A.play(items[0], items)} style={{ backgroundColor: RED, borderRadius: 18, paddingHorizontal: 22, paddingVertical: 7, marginLeft: 8 }}><Text style={{ color: '#fff', fontWeight: '700' }}>{'▶ נגן'}</Text></Pressable>
-          <Pressable onPress={() => { const sh = items.slice().sort(() => Math.random() - 0.5); A.play(sh[0], sh); }} style={{ backgroundColor: c.card, borderRadius: 18, paddingHorizontal: 22, paddingVertical: 7 }}><Text style={{ color: c.fg, fontWeight: '700' }}>ערבוב</Text></Pressable>
+    <View style={{ maxWidth: 720, width: '100%', alignSelf: 'center' }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'flex-start', padding: 14 }}>
+        <Pressable onPress={A.back} style={circ}><Text style={{ color: c.fg, fontSize: 18 }}>{'→'}</Text></Pressable>
+      </View>
+      <View style={{ alignItems: 'center', paddingHorizontal: 16 }}>
+        {page.thumb ? <Image source={{ uri: page.thumb }} style={{ width: wideScreenX() ? 268 : 280, height: wideScreenX() ? 268 : 280, borderRadius: 12, backgroundColor: c.card }} /> : null}
+        <Text style={{ color: c.fg, fontSize: 22, fontWeight: '800', marginTop: 16, textAlign: 'center' }}>{page.title}</Text>
+        {!!page.artist && <Pressable onPress={() => A.openArtist(page.artist)}><Text style={{ color: RED, fontSize: 16, fontWeight: '700', marginTop: 4 }}>{page.artist}</Text></Pressable>}
+        {!!tracks && !!tracks.length && <Text style={{ color: c.sub, fontSize: 12, marginTop: 6 }}>{tracks.length + ' שירים'}</Text>}
+        <View style={{ flexDirection: 'row', alignSelf: 'stretch', marginTop: 18, marginBottom: 8 }}>
+          <Pressable disabled={!tracks || !tracks.length} onPress={() => A.play(tracks[0], tracks)} style={[pill, { marginRight: 5 }]}><Icon name="play" size={16} color={RED} /><Text style={{ color: RED, fontWeight: '700', fontSize: 16, marginHorizontal: 8 }}>{'נגן'}</Text></Pressable>
+          <Pressable disabled={!tracks || !tracks.length} onPress={doShuffle} style={[pill, { marginLeft: 5 }]}><Icon name="shuffle" size={16} color={RED} /><Text style={{ color: RED, fontWeight: '700', fontSize: 16, marginHorizontal: 8 }}>{'ערבוב'}</Text></Pressable>
         </View>
-      )}
-      {!!pl && (
-        <View style={{ paddingHorizontal: 16, marginTop: 10 }}>
-          <TextInput value={nm} onChangeText={setNm} onSubmitEditing={() => A.renamePlaylist(pl.id, nm)} placeholder="שם הפלייליסט" placeholderTextColor={c.sub}
-            style={[s.input, { backgroundColor: c.card, color: c.fg, textAlign: 'right', marginHorizontal: 0 }]} />
-          <View style={{ flexDirection: 'row' }}>
-            <Pressable onPress={() => A.renamePlaylist(pl.id, nm)} style={{ padding: 8 }}><Text style={{ color: RED, fontWeight: '700' }}>שמור שם</Text></Pressable>
-            <Pressable onPress={() => { A.removePlaylist(pl.id); A.back(); }} style={{ padding: 8 }}><Text style={{ color: c.sub }}>מחק פלייליסט</Text></Pressable>
-          </View>
-        </View>
-      )}
-      {items.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={(p) => A.sheet(t, p)} onPress={() => A.play(t, items)} />)}
-    </View>
-  );
-}
-
-
-async function wjson(path) {
-  let last;
-  for (let i = 0; i < 3; i++) {
-    try { const r = await fetch(WORKER + path); if (r.ok) return await r.json(); last = new Error('http ' + r.status); } catch (e) { last = e; }
-  }
-  throw last;
-}
-const ytThumb = (id) => 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg';
-
-const wideScreenX = () => Dimensions.get('window').width >= 900;
-function ArtistPage({ c, A, page }) {
-  const [songs, setSongs] = useState(null);
-  const [albums, setAlbums] = useState(null);
-  const [similar, setSimilar] = useState(null);
-  const [ch, setCh] = useState(page.ch);
-  useEffect(() => {
-    let live = true;
-    (async () => {
-      let found = [];
-      try { found = await searchCached(page.title); } catch (e) {}
-      const mine = found.filter((t) => (page.ch ? t.ch === page.ch : norm(t.artist).includes(norm(page.title))));
-      if (!live) return;
-      setSongs(mine.length ? mine : found);
-      const id = page.ch || (mine[0] && mine[0].ch) || (found[0] && found[0].ch);
-      if (id) {
-        setCh(id);
-        wjson('/music-artist/' + id).then((j) => live && setAlbums((j.releases || []).filter((r) => r.plId))).catch(() => live && setAlbums([]));
-        wjson('/similar-artists/' + id).then((j) => live && setSimilar(j.artists || [])).catch(() => live && setSimilar([]));
-      } else { setAlbums([]); setSimilar([]); }
-    })();
-    return () => { live = false; };
-  }, [page.title, page.ch]);
-  const cover = songs && songs[0];
-  return (
-    <View>
-      {(() => {
-        const fo = { title: page.title, ch: ch || page.ch || '', thumb: cover ? cover.thumb : '' };
-        const on = (A.follows.artists || []).some((x) => (x.ch || x.title) === (fo.ch || fo.title));
-        const circ = { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' };
-        const H = wideScreenX() ? 400 : 300;
-        const last = albums && albums[0];
-        return (
-          <View>
-            <View style={{ height: H, backgroundColor: c.card, overflow: 'hidden', borderRadius: wideScreenX() ? 0 : 0 }}>
-              {cover ? <Image source={{ uri: cover.thumb }} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, width: '100%', height: '100%', opacity: 0.4 }} resizeMode="cover" /> : null}
-              {Platform.OS === 'web'
-                ? <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, top: 0, backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.15) 40%, ' + c.bg + ' 100%)' }} />
-                : <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: H * 0.5, backgroundColor: c.bg, opacity: 0.55 }} />}
-              <View style={{ position: 'absolute', top: 12, left: 14, right: 14, flexDirection: 'row-reverse', justifyContent: 'space-between' }}>
-                <Pressable onPress={A.back} style={circ}><Text style={{ color: '#fff', fontSize: 18 }}>{'→'}</Text></Pressable>
-                <Pressable onPress={() => A.sheet(songs && songs[0])} style={circ}><Icon name="dots" size={20} color="#fff" /></Pressable>
-              </View>
-              <View style={{ position: 'absolute', left: 14, right: 14, bottom: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text numberOfLines={1} style={{ color: '#fff', fontSize: wideScreenX() ? 56 : 38, fontWeight: '800', flexShrink: 1, textAlign: 'right' }}>{page.title}</Text>
-                <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center' }}>
-                  <Pressable onPress={() => A.toggleFollow('artists', fo)} style={circ}><Text style={{ color: on ? RED : '#fff', fontSize: 18 }}>{on ? '★' : '☆'}</Text></Pressable>
-                  <Pressable disabled={!songs || !songs.length} onPress={() => A.play(songs[0], songs)} style={{ width: 62, height: 62, borderRadius: 31, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginHorizontal: 12 }}><Icon name="play" size={30} color="#000" /></Pressable>
-                  <Pressable onPress={() => A.share && A.share(songs && songs[0])} style={circ}><Icon name="share" size={18} color="#fff" /></Pressable>
-                </View>
-              </View>
-            </View>
-            {!!last && (
-              <Pressable onPress={() => A.openAlbum(last)} style={{ alignSelf: 'center', width: '92%', maxWidth: 560, flexDirection: 'row', direction: 'ltr', alignItems: 'center', borderRadius: 14, borderWidth: 1, borderColor: c.line, backgroundColor: c.card, padding: 10, marginTop: 20 }}>
-                <Text style={{ color: c.sub, fontSize: 20, marginHorizontal: 6 }}>‹</Text>
-                <View style={{ flex: 1, direction: 'rtl' }}>
-                  <Text style={{ color: RED, fontSize: 12, textAlign: 'right' }}>מההוצאות האחרונות בקטלוג</Text>
-                  <Text numberOfLines={1} style={{ color: c.fg, fontSize: 17, fontWeight: '700', textAlign: 'right' }}>{last.title}</Text>
-                  <Text style={{ color: c.sub, fontSize: 13, textAlign: 'right' }}>{(last.releaseYear ? last.releaseYear + ' · ' : '') + 'לפי קטלוג האמן'}</Text>
-                </View>
-                {last.thumb ? <Image source={{ uri: last.thumb }} style={{ width: 80, height: 80, borderRadius: 8, marginLeft: 10 }} /> : null}
-              </Pressable>
-            )}
-          </View>
-        );
-      })()}
-      <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 6 }]}>{'שירים מובילים ‹'}</Text>
-      {!songs && <ActivityIndicator color={RED} style={{ margin: 14 }} />}
-      {!!songs && !songs.length && <Text style={{ color: c.sub, textAlign: 'center' }}>לא נמצאו שירים</Text>}
-      {!!songs && songs.slice(0, 10).map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={(p) => A.sheet(t, p)} onPress={() => A.play(t, songs)} />)}
-      {!!albums && !!albums.length && (
-        <View style={{ marginTop: 22 }}>
-          <Text style={[s.h2, { color: c.fg, marginBottom: 8 }]}>אלבומים וסינגלים</Text>
-          <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
-            {albums.slice(0, 20).map((al) => (
-              <Card key={al.plId} t={{ title: al.title, thumb: al.thumb, artist: al.releaseYear || '' }} c={c} onPress={() => A.openAlbum(al)} />
-            ))}
-          </HScroll>
-        </View>
-      )}
-      {!!similar && !!similar.length && (
-        <View style={{ marginTop: 22 }}>
-          <Text style={[s.h2, { color: c.fg, marginBottom: 8 }]}>אמנים דומים</Text>
-          <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
-            {similar.slice(0, 15).map((ar) => (
-              <Pressable key={ar.id} onPress={() => A.openArtist(ar.name, ar.id)} style={{ width: 110, alignItems: 'center', marginLeft: 12 }}>
-                {ar.avatar ? <Image source={{ uri: ar.avatar }} style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: c.card }} /> : <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: c.card }} />}
-                <Text numberOfLines={1} style={{ color: c.fg, marginTop: 6 }}>{ar.name}</Text>
-              </Pressable>
-            ))}
-          </HScroll>
-        </View>
-      )}
-    </View>
-  );
-}
-
-function AlbumPage({ c, A, page }) {
-  const [tracks, setTracks] = useState(null);
-  const [err, setErr] = useState('');
-  useEffect(() => {
-    let live = true;
-    wjson('/album/' + page.plId).then((j) => {
-      if (!live) return;
-      const list = clean((j.tracks || []).map((t) => ({ id: t.id, title: t.title, artist: t.artist || page.artist, thumb: page.thumb || ytThumb(t.id), dur: 0, ch: '' })));
-      setTracks(list);
-      if (!list.length) setErr('האלבום ריק');
-    }).catch(() => { if (live) { setTracks([]); setErr('האלבום לא זמין כרגע'); } });
-    return () => { live = false; };
-  }, [page.plId]);
-  return (
-    <View>
-      <Pressable onPress={A.back} style={{ padding: 16 }}><Text style={{ color: RED, fontSize: 16, textAlign: 'right' }}>{'› חזרה'}</Text></Pressable>
-      <View style={{ alignItems: 'center' }}>
-        {page.thumb ? <Image source={{ uri: page.thumb }} style={{ width: 200, height: 200, borderRadius: 10, backgroundColor: c.card }} /> : null}
-        <Text style={{ color: c.fg, fontSize: 24, fontWeight: '800', marginTop: 12, textAlign: 'center', paddingHorizontal: 16 }}>{page.title}</Text>
-        <Text style={{ color: c.sub }}>{page.artist}</Text>
-        <Pressable disabled={!tracks || !tracks.length} onPress={() => A.play(tracks[0], tracks)} style={{ backgroundColor: RED, borderRadius: 20, paddingHorizontal: 28, paddingVertical: 8, marginTop: 10 }}>
-          <Text style={{ color: '#fff', fontWeight: '700' }}>{'▶ נגן'}</Text>
-        </Pressable>
         {(() => { const fo = { title: page.title, plId: page.plId, thumb: page.thumb, artist: page.artist }; const on = (A.follows.albums || []).some((x) => x.plId === fo.plId); return (
-          <Pressable onPress={() => A.toggleFollow('albums', fo)} style={{ borderWidth: 1, borderColor: on ? RED : c.line, borderRadius: 20, paddingHorizontal: 22, paddingVertical: 6, marginTop: 8 }}><Text style={{ color: on ? RED : c.fg, fontWeight: '700' }}>{on ? 'נשמר ✓' : '+ שמור בספריה'}</Text></Pressable>); })()}
+          <Pressable onPress={() => A.toggleFollow('albums', fo)} style={{ paddingVertical: 4 }}><Text style={{ color: on ? RED : c.sub, fontWeight: '700', fontSize: 13 }}>{on ? 'נשמר בספריה ✓' : '+ שמור בספריה'}</Text></Pressable>); })()}
       </View>
       {!tracks && <ActivityIndicator color={RED} style={{ margin: 14 }} />}
       {!!err && <Text style={{ color: c.sub, textAlign: 'center', margin: 14 }}>{err}</Text>}
-      {!!tracks && tracks.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={(p) => A.sheet(t, p)} onPress={() => A.play(t, tracks)} />)}
+      {!!tracks && tracks.map((t, i) => <Row key={t.id} t={t} num={i + 1} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={(p) => A.sheet(t, p)} onPress={() => A.play(t, tracks)} />)}
     </View>
   );
 }
@@ -1276,7 +1138,13 @@ function AppInner() {
           {wideScreen ? <Pressable onPress={() => share(cur)} style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center' }}><Icon name="share" size={24} color={c.fg} /></Pressable> : null}
           <Pressable onPress={() => setShowQ((v) => !v)} style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center' }}><Icon name="queue" size={24} color={showQ ? RED : c.fg} /></Pressable>
         </View>
-        {showLyr && <View style={{ width: '100%', maxWidth: 520 }}><Lyrics c={c} cur={cur} pos={pos} dur={dur} /></View>}
+        {showLyr && <View style={{ width: '100%', maxWidth: 520 }}><Lyrics c={c} cur={cur} pos={pos} dur={dur} />
+          {wideScreen && <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, marginTop: 6, borderTopWidth: 1, borderTopColor: c.line }}>
+            <Pressable onPress={() => go(-1)} style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginHorizontal: 9 }}><Icon name="prev" size={19} color={c.fg} /></Pressable>
+            <Pressable onPress={() => player.toggle()} style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginHorizontal: 9 }}><Icon name={playing ? 'pause' : 'play'} size={19} color={c.fg} /></Pressable>
+            <Pressable onPress={() => go(1)} style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginHorizontal: 9 }}><Icon name="next" size={19} color={c.fg} /></Pressable>
+          </View>}
+        </View>}
         {showQ && <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginTop: 12 }}><Pressable onPress={() => setShuffle((v) => !v)} style={{ padding: 8 }}><Icon name="shuffle" size={20} color={shuffle ? RED : c.fg} /></Pressable><Pressable onPress={() => setRepeat((r) => (r === 'off' ? 'all' : r === 'all' ? 'one' : 'off'))} style={{ padding: 8 }}><Icon name="repeat" size={20} color={repeat === 'off' ? c.fg : RED} /></Pressable><Text style={[s.h2, { color: c.fg, flex: 1, textAlign: 'right' }]}>הבא בתור</Text></View>}
         {showQ && <View style={{ width: '100%' }}>
           {queue.slice(Math.max(0, queue.findIndex((t) => t.id === cur.id) + 1), 40).map((t) => <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center' }}><View style={{ flex: 1 }}><Row t={t} c={c} active={false} fav={isFav(t)} onFav={() => toggleFav(t)} onMore={() => setSheet(t)} onPress={() => play(t)} /></View><View><Pressable onPress={() => moveQ(t.id, -1)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>▲</Text></Pressable><Pressable onPress={() => moveQ(t.id, 1)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>▼</Text></Pressable></View></View>)}
