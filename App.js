@@ -560,6 +560,151 @@ function ListPage({ c, A, page }) {
   const pl = page.pid ? A.playlists.find((p) => p.id === page.pid) : null;
   const items = pl ? pl.tracks : page.items;
   const [nm, setNm] = useState(page.title);
+  return (
+    <View>
+      <Pressable onPress={A.back} style={{ padding: 16 }}><Text style={{ color: RED, fontSize: 16, textAlign: 'right' }}>{'› חזרה'}</Text></Pressable>
+      <Text style={[s.large, { color: c.fg }]}>{page.title}</Text>
+      {!!items.length && (
+        <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginTop: 8 }}>
+          <Pressable onPress={() => A.play(items[0], items)} style={{ backgroundColor: RED, borderRadius: 18, paddingHorizontal: 22, paddingVertical: 7, marginLeft: 8 }}><Text style={{ color: '#fff', fontWeight: '700' }}>{'▶ נגן'}</Text></Pressable>
+          <Pressable onPress={() => { const sh = items.slice().sort(() => Math.random() - 0.5); A.play(sh[0], sh); }} style={{ backgroundColor: c.card, borderRadius: 18, paddingHorizontal: 22, paddingVertical: 7 }}><Text style={{ color: c.fg, fontWeight: '700' }}>ערבוב</Text></Pressable>
+        </View>
+      )}
+      {!!pl && (
+        <View style={{ paddingHorizontal: 16, marginTop: 10 }}>
+          <TextInput value={nm} onChangeText={setNm} onSubmitEditing={() => A.renamePlaylist(pl.id, nm)} placeholder="שם הפלייליסט" placeholderTextColor={c.sub}
+            style={[s.input, { backgroundColor: c.card, color: c.fg, textAlign: 'right', marginHorizontal: 0 }]} />
+          <View style={{ flexDirection: 'row' }}>
+            <Pressable onPress={() => A.renamePlaylist(pl.id, nm)} style={{ padding: 8 }}><Text style={{ color: RED, fontWeight: '700' }}>שמור שם</Text></Pressable>
+            <Pressable onPress={() => { A.removePlaylist(pl.id); A.back(); }} style={{ padding: 8 }}><Text style={{ color: c.sub }}>מחק פלייליסט</Text></Pressable>
+          </View>
+        </View>
+      )}
+      {items.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={(p) => A.sheet(t, p)} onPress={() => A.play(t, items)} />)}
+    </View>
+  );
+}
+
+
+async function wjson(path) {
+  let last;
+  for (let i = 0; i < 3; i++) {
+    try { const r = await fetch(WORKER + path); if (r.ok) return await r.json(); last = new Error('http ' + r.status); } catch (e) { last = e; }
+  }
+  throw last;
+}
+const ytThumb = (id) => 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg';
+
+const wideScreenX = () => Dimensions.get('window').width >= 900;
+function ArtistPage({ c, A, page }) {
+  const [songs, setSongs] = useState(null);
+  const [albums, setAlbums] = useState(null);
+  const [similar, setSimilar] = useState(null);
+  const [ch, setCh] = useState(page.ch);
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      let found = [];
+      try { found = await searchCached(page.title); } catch (e) {}
+      const mine = found.filter((t) => (page.ch ? t.ch === page.ch : norm(t.artist).includes(norm(page.title))));
+      if (!live) return;
+      setSongs(mine.length ? mine : found);
+      const id = page.ch || (mine[0] && mine[0].ch) || (found[0] && found[0].ch);
+      if (id) {
+        setCh(id);
+        wjson('/music-artist/' + id).then((j) => live && setAlbums((j.releases || []).filter((r) => r.plId))).catch(() => live && setAlbums([]));
+        wjson('/similar-artists/' + id).then((j) => live && setSimilar(j.artists || [])).catch(() => live && setSimilar([]));
+      } else { setAlbums([]); setSimilar([]); }
+    })();
+    return () => { live = false; };
+  }, [page.title, page.ch]);
+  const cover = songs && songs[0];
+  return (
+    <View>
+      {(() => {
+        const fo = { title: page.title, ch: ch || page.ch || '', thumb: cover ? cover.thumb : '' };
+        const on = (A.follows.artists || []).some((x) => (x.ch || x.title) === (fo.ch || fo.title));
+        const circ = { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' };
+        const H = wideScreenX() ? 400 : 300;
+        const last = albums && albums[0];
+        return (
+          <View>
+            <View style={{ height: H, backgroundColor: c.card, overflow: 'hidden', borderRadius: wideScreenX() ? 0 : 0 }}>
+              {cover ? <Image source={{ uri: cover.thumb }} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, width: '100%', height: '100%', opacity: 0.4 }} resizeMode="cover" /> : null}
+              {Platform.OS === 'web'
+                ? <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, top: 0, backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.15) 40%, ' + c.bg + ' 100%)' }} />
+                : <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: H * 0.5, backgroundColor: c.bg, opacity: 0.55 }} />}
+              <View style={{ position: 'absolute', top: 12, left: 14, right: 14, flexDirection: 'row-reverse', justifyContent: 'space-between' }}>
+                <Pressable onPress={A.back} style={circ}><Text style={{ color: '#fff', fontSize: 18 }}>{'→'}</Text></Pressable>
+                <Pressable onPress={() => A.sheet(songs && songs[0])} style={circ}><Icon name="dots" size={20} color="#fff" /></Pressable>
+              </View>
+              <View style={{ position: 'absolute', left: 14, right: 14, bottom: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text numberOfLines={1} style={{ color: '#fff', fontSize: wideScreenX() ? 56 : 38, fontWeight: '800', flexShrink: 1, textAlign: 'right' }}>{page.title}</Text>
+                <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center' }}>
+                  <Pressable onPress={() => A.toggleFollow('artists', fo)} style={circ}><Text style={{ color: on ? RED : '#fff', fontSize: 18 }}>{on ? '★' : '☆'}</Text></Pressable>
+                  <Pressable disabled={!songs || !songs.length} onPress={() => A.play(songs[0], songs)} style={{ width: 62, height: 62, borderRadius: 31, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginHorizontal: 12 }}><Icon name="play" size={30} color="#000" /></Pressable>
+                  <Pressable onPress={() => A.share && A.share(songs && songs[0])} style={circ}><Icon name="share" size={18} color="#fff" /></Pressable>
+                </View>
+              </View>
+            </View>
+            {!!last && (
+              <Pressable onPress={() => A.openAlbum(last)} style={{ alignSelf: 'center', width: '92%', maxWidth: 560, flexDirection: 'row', direction: 'ltr', alignItems: 'center', borderRadius: 14, borderWidth: 1, borderColor: c.line, backgroundColor: c.card, padding: 10, marginTop: 20 }}>
+                <Text style={{ color: c.sub, fontSize: 20, marginHorizontal: 6 }}>‹</Text>
+                <View style={{ flex: 1, direction: 'rtl' }}>
+                  <Text style={{ color: RED, fontSize: 12, textAlign: 'right' }}>מההוצאות האחרונות בקטלוג</Text>
+                  <Text numberOfLines={1} style={{ color: c.fg, fontSize: 17, fontWeight: '700', textAlign: 'right' }}>{last.title}</Text>
+                  <Text style={{ color: c.sub, fontSize: 13, textAlign: 'right' }}>{(last.releaseYear ? last.releaseYear + ' · ' : '') + 'לפי קטלוג האמן'}</Text>
+                </View>
+                {last.thumb ? <Image source={{ uri: last.thumb }} style={{ width: 80, height: 80, borderRadius: 8, marginLeft: 10 }} /> : null}
+              </Pressable>
+            )}
+          </View>
+        );
+      })()}
+      <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 6 }]}>{'שירים מובילים ‹'}</Text>
+      {!songs && <ActivityIndicator color={RED} style={{ margin: 14 }} />}
+      {!!songs && !songs.length && <Text style={{ color: c.sub, textAlign: 'center' }}>לא נמצאו שירים</Text>}
+      {!!songs && songs.slice(0, 10).map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={(p) => A.sheet(t, p)} onPress={() => A.play(t, songs)} />)}
+      {!!albums && !!albums.length && (
+        <View style={{ marginTop: 22 }}>
+          <Text style={[s.h2, { color: c.fg, marginBottom: 8 }]}>אלבומים וסינגלים</Text>
+          <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+            {albums.slice(0, 20).map((al) => (
+              <Card key={al.plId} t={{ title: al.title, thumb: al.thumb, artist: al.releaseYear || '' }} c={c} onPress={() => A.openAlbum(al)} />
+            ))}
+          </HScroll>
+        </View>
+      )}
+      {!!similar && !!similar.length && (
+        <View style={{ marginTop: 22 }}>
+          <Text style={[s.h2, { color: c.fg, marginBottom: 8 }]}>אמנים דומים</Text>
+          <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+            {similar.slice(0, 15).map((ar) => (
+              <Pressable key={ar.id} onPress={() => A.openArtist(ar.name, ar.id)} style={{ width: 110, alignItems: 'center', marginLeft: 12 }}>
+                {ar.avatar ? <Image source={{ uri: ar.avatar }} style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: c.card }} /> : <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: c.card }} />}
+                <Text numberOfLines={1} style={{ color: c.fg, marginTop: 6 }}>{ar.name}</Text>
+              </Pressable>
+            ))}
+          </HScroll>
+        </View>
+      )}
+    </View>
+  );
+}
+
+function AlbumPage({ c, A, page }) {
+  const [tracks, setTracks] = useState(null);
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    let live = true;
+    wjson('/album/' + page.plId).then((j) => {
+      if (!live) return;
+      const list = clean((j.tracks || []).map((t) => ({ id: t.id, title: t.title, artist: t.artist || page.artist, thumb: page.thumb || ytThumb(t.id), dur: 0, ch: '' })));
+      setTracks(list);
+      if (!list.length) setErr('האלבום ריק');
+    }).catch(() => { if (live) { setTracks([]); setErr('האלבום לא זמין כרגע'); } });
+    return () => { live = false; };
+  }, [page.plId]);
   const circ = { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(120,120,128,0.28)', alignItems: 'center', justifyContent: 'center' };
   const pill = { flex: 1, height: 44, borderRadius: 12, backgroundColor: c.card, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' };
   const doShuffle = () => { if (!tracks || !tracks.length) return; const l = tracks.slice(); for (let i = l.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [l[i], l[j]] = [l[j], l[i]]; } A.play(l[0], l); };
