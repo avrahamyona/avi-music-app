@@ -153,11 +153,13 @@ function Row({ t, onPress, c, active, fav, onFav, onMore }) {
 // A shelf that loads one search and paints cards, like the website's home sections.
 function Shelf({ title, query, c, A, wide, rows, limit = 12, hideIfEmpty }) {
   const [items, setItems] = useState(null);
+  const [tries, setTries] = useState(0);
   useEffect(() => {
     let live = true;
+    setItems(null);
     searchCached(query).then((r) => { if (live) setItems(r); }).catch(() => { if (live) setItems([]); });
     return () => { live = false; };
-  }, [query]);
+  }, [query, tries]);
   if (items && !items.length && hideIfEmpty) return null;
   return (
     <View style={{ marginTop: 22 }}>
@@ -166,7 +168,7 @@ function Shelf({ title, query, c, A, wide, rows, limit = 12, hideIfEmpty }) {
         {!!items && items.length > limit && <Text style={{ color: c.sub }}>{'הכל ‹'}</Text>}
       </Pressable>
       {!items && <ActivityIndicator color={RED} style={{ margin: 14 }} />}
-      {!!items && !items.length && <Text style={{ color: c.sub, textAlign: 'right', marginHorizontal: 16 }}>לא זמין כרגע</Text>}
+      {!!items && !items.length && <Pressable onPress={() => setTries((n) => n + 1)}><Text style={{ color: c.sub, textAlign: 'right', marginHorizontal: 16 }}>{'לא זמין כרגע. בדוק חיבור לאינטרנט · לחץ לנסות שוב'}</Text></Pressable>}
       {!!items && !!items.length && (rows ? items.slice(0, 8).map((t) => (
         <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={() => A.sheet(t)} onPress={() => A.play(t, items)} />
       )) : (
@@ -750,7 +752,7 @@ function MoodPage({ c, A, page }) {
   );
 }
 
-export default function App() {
+function AppInner() {
   const system = useColorScheme();
   const { width } = useWindowDimensions();
   const wideScreen = width >= 900;
@@ -1119,3 +1121,21 @@ const s = StyleSheet.create({
   skip: { width: 40, height: 44, alignItems: 'center', justifyContent: 'center' },
   play: { width: 44, height: 44, borderRadius: 22, backgroundColor: RED, alignItems: 'center', justifyContent: 'center' },
 });
+
+class Boundary extends React.Component {
+  constructor(p) { super(p); this.state = { err: false }; }
+  static getDerivedStateFromError() { return { err: true }; }
+  render() {
+    if (!this.state.err) return this.props.children;
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#111114', padding: 24 }}>
+        <Text style={{ color: '#fff', fontSize: 20, fontWeight: '700', textAlign: 'center' }}>משהו השתבש</Text>
+        <Pressable onPress={() => this.setState({ err: false })} style={{ marginTop: 16, backgroundColor: RED, borderRadius: 20, paddingHorizontal: 24, paddingVertical: 10 }}>
+          <Text style={{ color: '#fff', fontWeight: '700' }}>נסה שוב</Text>
+        </Pressable>
+      </View>
+    );
+  }
+}
+
+export default function App() { return <Boundary><AppInner /></Boundary>; }
