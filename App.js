@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, TextInput, FlatList, Image, Pressable, StyleSheet, Animated, Easing,
   PanResponder, useColorScheme, Platform, Share, Modal, ActivityIndicator, StatusBar, Linking, ScrollView, useWindowDimensions,
@@ -227,6 +227,7 @@ function Hero({ title, kicker, desc, img, grad, onPress }) {
 function Home({ c, A }) {
   const seeds = [];
   for (const t of A.history) { const a = t.artist.replace(/ - Topic$/i, ''); if (a && !seeds.includes(a)) seeds.push(a); if (seeds.length >= 6) break; }
+  const mix = useMemo(() => [...A.history, ...(A.favs || [])].filter((t, i, l) => l.findIndex((x) => x.id === t.id) === i).sort(() => Math.random() - 0.5).slice(0, 12), [A.history.length, (A.favs || []).length]);
   const byArtist = (a) => A.history.find((t) => t.artist.replace(/ - Topic$/i, '') === a);
   return (
     <View>
@@ -241,6 +242,14 @@ function Home({ c, A }) {
           </HScroll>
         </View>
       )}
+      {A.history.length > 3 && (
+        <View style={{ marginTop: 22 }}>
+          <Text style={[s.h2, { color: c.fg, marginHorizontal: 16, textAlign: 'right' }]}>המיקס שלך</Text>
+          <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
+            {mix.map((t) => <Card key={t.id} t={t} c={c} onPress={() => A.play(t, mix)} />)}
+          </HScroll>
+        </View>
+      )}
       <View style={{ marginTop: 22 }}>
         <Text style={[s.h2, { color: c.fg, marginHorizontal: 16, textAlign: 'right' }]}>הושמעו לאחרונה</Text>
         {A.history.length ? (
@@ -249,8 +258,13 @@ function Home({ c, A }) {
           </HScroll>
         ) : <Text style={{ color: c.sub, textAlign: 'right', marginHorizontal: 16, marginTop: 8 }}>נגן משהו ונתחיל להכיר את הטעם שלך.</Text>}
       </View>
-      <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 8 }]}>מצבי רוח ואווירה</Text>
+      <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 8 }]}>אווירה ומצב רוח</Text>
       <MoodTiles c={c} A={A} />
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 18 }}>
+        {ACTIVITIES.map((t) => <Topic key={t[0]} t={t} c={c} A={A} />)}
+      </View>
+      {!!seeds.length && <Shelf title="עוד מהאמנים שלך" query={seeds[0] + ' שירים'} c={c} A={A} />}
+      {seeds.length > 1 && <Shelf title="עוד שירים בשבילך" query={seeds[1] + ' להיטים'} c={c} A={A} />}
       <Shelf title="השירים החדשים הטובים ביותר" query="שירים חדשים ישראל" c={c} A={A} rows />
       <Shelf title="מוזיקה חדשה" query="שירים פופולריים ישראל" c={c} A={A} />
       <Shelf title="כולם מקשיבים ל..." query="להיטים ישראלים" c={c} A={A} wide />
@@ -258,6 +272,14 @@ function Home({ c, A }) {
   );
 }
 
+const ACTIVITIES = [
+  ['בוקר טוב', 'להתעורר עם שיר', 'שירים לבוקר ישראל'], ['קפה של בוקר', 'רגוע ונעים', 'שירים לקפה של בוקר'],
+  ['ריצה', 'קצב לריצה', 'שירים לריצה'], ['הליכה', 'קצב נוח', 'שירים להליכה'], ['מוטיבציה', 'להתחזק', 'שירי מוטיבציה ישראל'],
+  ['עבודה', 'להתרכז', 'מוזיקה לעבודה'], ['לימודים', 'שקט ומרוכז', 'מוזיקה ללימודים'],
+  ['נרגעים', 'להוריד הילוך', 'שירים להירגע'], ['מבשלים', 'מוזיקה למטבח', 'שירים לבישול'], ['ארוחת ערב', 'אווירה נעימה', 'שירים לארוחת ערב'], ['מארחים', 'לאורחים', 'שירים לאירוח'],
+  ['עם חברים', 'שירים משותפים', 'שירים לחברים ישראל'], ['מתארגנים לצאת', 'לפני הערב', 'שירי מסיבה ישראל'],
+  ['סוף שבוע', 'מצב שישי', 'שירים לסוף שבוע'], ['לילה מאוחר', 'שירי לילה', 'שירי לילה ישראל'], ['יום גשום', 'גשם בחוץ', 'שירים ליום גשום'], ['לב שבור', 'שירי פרידה', 'שירי פרידה ישראל'],
+];
 const TOPICS = [
   ['אימון', 'קצב לאימון', 'מוזיקה לאימון קצבית'],
   ['נסיעה', 'שירים לדרך', 'שירים לנסיעה ישראל'],
@@ -284,7 +306,7 @@ function Topic({ t, c, A }) {
 function Browse({ c, A }) {
   return (
     <View>
-      <Text style={[s.h2, { color: c.fg, marginTop: 14, marginBottom: 8 }]}>מצבי רוח ואווירה</Text>
+      <Text style={[s.h2, { color: c.fg, marginTop: 14, marginBottom: 8 }]}>אווירה ומצב רוח</Text>
       <MoodTiles c={c} A={A} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 18 }}>
         {TOPICS.map((t) => <Topic key={t[0]} t={t} c={c} A={A} />)}
