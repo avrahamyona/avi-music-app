@@ -728,6 +728,15 @@ function ListPage({ c, A, page }) {
     try { const r = await page.more(items); const have = new Set(items.map((t) => t.id)); const add = r.tracks.filter((t) => !have.has(t.id)).slice(0, 30); setExtra((e) => e.concat(add)); setMoreSt(r.done || !add.length ? 'done' : 'idle'); } catch (e) { setMoreSt('err'); }
   };
   const [nm, setNm] = useState(page.title);
+  const [gAlbums, setGAlbums] = useState([]);
+  useEffect(() => {
+    if (!page.genre || !base.length) return;
+    let live = true; const chs = [];
+    for (const t of base) if (t.ch && !chs.includes(t.ch)) chs.push(t.ch);
+    Promise.all(chs.slice(0, 4).map((ch) => wjson('/music-artist/' + ch).then((j) => (j.releases || []).filter((r) => r.plId).slice(0, 4)).catch(() => [])))
+      .then((all) => { if (live) { const seenP = new Set(); setGAlbums(all.flat().filter((a) => !seenP.has(a.plId) && seenP.add(a.plId)).slice(0, 12)); } });
+    return () => { live = false; };
+  }, [page.title, base.length]);
   return (
     <View>
       <Pressable onPress={A.back} style={{ padding: 16 }}><Text style={{ color: RED, fontSize: 16, textAlign: 'right' }}>{'› חזרה'}</Text></Pressable>
@@ -739,7 +748,7 @@ function ListPage({ c, A, page }) {
           <Text style={{ color: c.fg, fontSize: 32, fontWeight: '800', textAlign: 'right', marginHorizontal: 20, marginTop: 18 }}>{page.title}</Text>
           {!!page.desc && <Text style={{ color: c.fg, fontSize: 18, fontWeight: '600', textAlign: 'right', marginHorizontal: 20, marginTop: 6 }}>{page.desc}</Text>}
           <Text style={{ color: c.sub, fontSize: 13, textAlign: 'right', marginHorizontal: 20, marginTop: 4 }}>{'שירים · אמנים · אלבומים ו-EP'}</Text>
-          <Pressable onPress={() => A.play(items[0], items)} style={{ alignSelf: 'flex-end', backgroundColor: RED, borderRadius: 24, paddingHorizontal: 30, paddingVertical: 12, marginHorizontal: 20, marginTop: 16 }}><Text style={{ color: '#fff', fontWeight: '800', fontSize: 17 }}>{'התחל ▶'}</Text></Pressable>
+          <Pressable onPress={() => A.play(items[0], items)} style={{ alignSelf: 'flex-start', backgroundColor: RED, borderRadius: 24, paddingHorizontal: 30, paddingVertical: 12, marginHorizontal: 20, marginTop: 16 }}><Text style={{ color: '#fff', fontWeight: '800', fontSize: 17 }}>{'התחל ▶'}</Text></Pressable>
           <Text style={[s.h2, { color: c.fg, marginTop: 24, marginBottom: 6 }]}>אמנים מומלצים בתחום</Text>
           <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
             {(() => { const seenA = new Set(); return items.filter((t) => { const k = norm(String(t.artist).replace(/ - Topic$/i, '')); if (seenA.has(k)) return false; seenA.add(k); return true; }).slice(0, 10); })().map((t) => { const n = String(t.artist).replace(/ - Topic$/i, ''); return (
@@ -748,6 +757,14 @@ function ListPage({ c, A, page }) {
                 <Text numberOfLines={1} style={{ color: c.fg, fontWeight: '700', marginTop: 8 }}>{n}</Text>
               </Pressable>); })}
           </HScroll>
+          {!!gAlbums.length && (
+            <View>
+              <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 6 }]}>אלבומים ו-EP מומלצים</Text>
+              <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+                {gAlbums.map((al) => <Card key={al.plId} t={{ title: al.title, thumb: al.thumb, artist: al.releaseYear || '' }} c={c} onPress={() => A.openAlbum(al)} />)}
+              </HScroll>
+            </View>
+          )}
           <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 6 }]}>שירים בתחום</Text>
         </View>
       )}
@@ -1646,4 +1663,3 @@ class Boundary extends React.Component {
 }
 
 export default function App() { return <Boundary><AppInner /></Boundary>; }
-// build bump
