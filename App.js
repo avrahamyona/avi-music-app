@@ -288,14 +288,6 @@ function Home({ c, A }) {
           </HScroll>
         </View>
       )}
-      {A.history.length > 3 && (
-        <View style={{ marginTop: 22 }}>
-          <Text style={[s.h2, { color: c.fg, marginHorizontal: 16, textAlign: 'right' }]}>המיקס שלך</Text>
-          <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
-            {mix.map((t) => <Card key={t.id} t={t} c={c} onPress={() => A.play(t, mix)} />)}
-          </HScroll>
-        </View>
-      )}
       <View style={{ marginTop: 22 }}>
         <Text style={[s.h2, { color: c.fg, marginHorizontal: 16, textAlign: 'right' }]}>הושמעו לאחרונה</Text>
         {A.history.length ? (
@@ -304,16 +296,29 @@ function Home({ c, A }) {
           </HScroll>
         ) : <Text style={{ color: c.sub, textAlign: 'right', marginHorizontal: 16, marginTop: 8 }}>נגן משהו ונתחיל להכיר את הטעם שלך.</Text>}
       </View>
+      {!!seeds.length && <Shelf title="עוד מהאמנים שלך" query={seeds[0] + ' שירים'} c={c} A={A} />}
+      <Shelf title="השירים החדשים הטובים ביותר" query="שירים חדשים ישראל" c={c} A={A} rows />
+      <Shelf title="מוזיקה חדשה" query="שירים פופולריים ישראל" c={c} A={A} />
+      <Shelf title="כולם מקשיבים ל..." query="להיטים ישראלים" c={c} A={A} wide />
+      {seeds.length > 1 && <Shelf title="עוד שירים בשבילך" query={seeds[1] + ' להיטים'} c={c} A={A} />}
+      {!!seeds.length && (
+        <View style={{ marginTop: 22 }}>
+          <Text style={[s.h2, { color: c.fg, marginHorizontal: 16, textAlign: 'right' }]}>אמנים מועדפים</Text>
+          <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
+            {seeds.slice(0, 6).map((n) => { const tk = byArtist(n); return (
+              <Pressable key={n} onPress={() => A.openArtist(n, tk && tk.ch)} style={{ width: 110, marginLeft: 12, alignItems: 'center' }}>
+                <View style={{ width: 100, height: 100, borderRadius: 50, overflow: 'hidden', backgroundColor: c.card }}>{tk && tk.thumb ? <Image source={{ uri: tk.thumb }} style={{ width: 100, height: 100 }} /> : null}</View>
+                <Text numberOfLines={1} style={{ color: c.fg, fontWeight: '700', fontSize: 14, marginTop: 8 }}>{n}</Text>
+                <Text numberOfLines={1} style={{ color: c.sub, fontSize: 12 }}>התחנה שלו</Text>
+              </Pressable>); })}
+          </HScroll>
+        </View>
+      )}
       <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 8 }]}>אווירה ומצב רוח</Text>
       <MoodTiles c={c} A={A} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 18 }}>
         {ACTIVITIES.map((t) => <Topic key={t[0]} t={t} c={c} A={A} />)}
       </View>
-      {!!seeds.length && <Shelf title="עוד מהאמנים שלך" query={seeds[0] + ' שירים'} c={c} A={A} />}
-      {seeds.length > 1 && <Shelf title="עוד שירים בשבילך" query={seeds[1] + ' להיטים'} c={c} A={A} />}
-      <Shelf title="השירים החדשים הטובים ביותר" query="שירים חדשים ישראל" c={c} A={A} rows />
-      <Shelf title="מוזיקה חדשה" query="שירים פופולריים ישראל" c={c} A={A} />
-      <Shelf title="כולם מקשיבים ל..." query="להיטים ישראלים" c={c} A={A} wide />
     </View>
   );
 }
@@ -378,7 +383,9 @@ function Radio({ c, A }) {
   );
   return (
     <View>
-      {!!mine.length && <Text style={[s.h2, { color: c.fg, marginTop: 6 }]}>תחנות לפי ההאזנה שלך</Text>}
+      {(!!(A.favs || []).length || !!(A.history || []).length) && <Text style={[s.h2, { color: c.fg, marginTop: 6 }]}>תחנה אישית</Text>}
+      {(!!(A.favs || []).length || !!(A.history || []).length) && card('הרדיו שלך', 'שירים שאתה אוהב ועוד כמוהם', () => { const base = (A.favs && A.favs.length ? A.favs : A.history).slice(0, 12); const l = base.sort(() => Math.random() - 0.5); if (l.length) A.play(l[0], l); }, 3, ((A.favs && A.favs.length ? A.favs : A.history)[0] || {}).thumb)}
+      {!!mine.length && <Text style={[s.h2, { color: c.fg, marginTop: 18 }]}>תחנות של אמנים</Text>}
       {!!mine.length && (
         <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
           {mine.map((n) => { const tk = (A.history || []).concat(A.favs || []).find((t) => String(t.artist).replace(/ - Topic$/i, '') === n); return (
@@ -389,8 +396,6 @@ function Radio({ c, A }) {
             </Pressable>); })}
         </HScroll>
       )}
-      {(!!(A.favs || []).length || !!(A.history || []).length) && <Text style={[s.h2, { color: c.fg, marginTop: 18 }]}>תחנה אישית</Text>}
-      {(!!(A.favs || []).length || !!(A.history || []).length) && card('הרדיו שלך', 'שירים שאתה אוהב ועוד כמוהם', () => { const base = (A.favs && A.favs.length ? A.favs : A.history).slice(0, 12); const l = base.sort(() => Math.random() - 0.5); if (l.length) A.play(l[0], l); }, 3, ((A.favs && A.favs.length ? A.favs : A.history)[0] || {}).thumb)}
       <Text style={[s.h2, { color: c.fg, marginTop: 18 }]}>תחנות</Text>
       {STATIONS.map(([n, q], i) => (
         <Pressable key={n} onPress={async () => { try { const r = await searchCached(q); if (r.length) A.play(r[0], r.slice().sort(() => Math.random() - 0.5).length ? [r[0], ...r.slice(1).sort(() => Math.random() - 0.5)] : r); } catch (e) {} }}
