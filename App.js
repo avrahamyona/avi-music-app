@@ -109,6 +109,26 @@ function FadeIn({ k, children }) {
   return <Animated.View style={{ flex: 1, opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] }}>{children}</Animated.View>;
 }
 
+function HScroll({ children, contentContainerStyle, ...rest }) {
+  const ref = useRef(null);
+  const off = useRef(0);
+  const [w, setW] = useState(0);
+  const web = Platform.OS === 'web';
+  const step = (d) => { const to = off.current + d * Math.max(200, w * 0.8); if (ref.current && ref.current.scrollTo) ref.current.scrollTo({ x: to, animated: true }); };
+  const arrow = (d, side) => (
+    <Pressable onPress={() => step(d)} style={{ position: 'absolute', top: '40%', [side]: 6, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(40,40,44,0.85)', alignItems: 'center', justifyContent: 'center', zIndex: 5 }}>
+      <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{d < 0 ? '›' : '‹'}</Text>
+    </Pressable>
+  );
+  return (
+    <View onLayout={(e) => setW(e.nativeEvent.layout.width)}>
+      <ScrollView ref={ref} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={contentContainerStyle} scrollEventThrottle={16} onScroll={(e) => { off.current = e.nativeEvent.contentOffset.x; }} {...rest}>{children}</ScrollView>
+      {web && w >= 700 && arrow(-1, 'right')}
+      {web && w >= 700 && arrow(1, 'left')}
+    </View>
+  );
+}
+
 function PlayerArt({ uri, playing, size, wide }) {
   const v = useRef(new Animated.Value(playing ? 1 : 0.88)).current;
   useEffect(() => { Animated.timing(v, { toValue: playing ? 1 : 0.88, duration: 220, easing: Easing.bezier(0.25, 0.1, 0.25, 1), useNativeDriver: false }).start(); }, [playing]);
@@ -150,9 +170,9 @@ function Shelf({ title, query, c, A, wide, rows, limit = 12, hideIfEmpty }) {
       {!!items && !!items.length && (rows ? items.slice(0, 8).map((t) => (
         <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={() => A.sheet(t)} onPress={() => A.play(t, items)} />
       )) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+        <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
           {items.slice(0, limit).map((t) => <Card key={t.id} t={t} c={c} wide={wide} onPress={() => A.play(t, items)} />)}
-        </ScrollView>
+        </HScroll>
       ))}
     </View>
   );
@@ -183,20 +203,20 @@ function Home({ c, A }) {
       {!!seeds.length && (
         <View style={{ marginTop: 18 }}>
           <Text style={[s.h2, { color: c.fg, marginHorizontal: 16, textAlign: 'right' }]}>בחירות מובילות עבורך</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
+          <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
             {seeds.map((a, i) => (
               <Hero key={a} title={'שירים של ' + a} kicker="במיוחד עבורך" desc={'עוד שירים של ' + a} grad={GRADS[i % GRADS.length]}
                 img={byArtist(a) && byArtist(a).thumb} onPress={() => A.openArtist(a, byArtist(a) && byArtist(a).ch)} />
             ))}
-          </ScrollView>
+          </HScroll>
         </View>
       )}
       <View style={{ marginTop: 22 }}>
         <Text style={[s.h2, { color: c.fg, marginHorizontal: 16, textAlign: 'right' }]}>הושמעו לאחרונה</Text>
         {A.history.length ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
+          <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
             {A.history.slice(0, 12).map((t) => <Card key={t.id} t={t} c={c} onPress={() => A.play(t, A.history)} />)}
-          </ScrollView>
+          </HScroll>
         ) : <Text style={{ color: c.sub, textAlign: 'right', marginHorizontal: 16, marginTop: 8 }}>נגן משהו ונתחיל להכיר את הטעם שלך.</Text>}
       </View>
       <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 8 }]}>מצבי רוח ואווירה</Text>
@@ -283,13 +303,13 @@ function Library({ c, A }) {
   const top = Object.entries(stats.artists || {}).sort((x, y) => y[1] - x[1]).slice(0, 10);
   return (
     <View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, marginTop: 8 }}>
+      <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, marginTop: 8 }}>
         {[['fav', 'מועדפים'], ['hist', 'הושמעו לאחרונה'], ['pls', 'פלייליסטים'], ['stats', 'סטטיסטיקה']].map(([k, n]) => (
           <Pressable key={k} onPress={() => setSec(k)} style={{ paddingVertical: 6, paddingHorizontal: 14, borderRadius: 16, marginLeft: 8, backgroundColor: sec === k ? RED : c.card }}>
             <Text style={{ color: sec === k ? '#fff' : c.fg, fontWeight: '600' }}>{n}</Text>
           </Pressable>
         ))}
-      </ScrollView>
+      </HScroll>
       {(sec === 'fav' || sec === 'hist') && !list.length && <Text style={{ color: c.sub, textAlign: 'center', marginTop: 40 }}>{sec === 'fav' ? 'עוד אין מועדפים. הקש על הלב ליד שיר.' : 'עוד לא הושמע כלום.'}</Text>}
       {(sec === 'fav' || sec === 'hist') && list.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={() => A.sheet(t)} onPress={() => A.play(t, list)} />)}
       {sec === 'pls' && (
@@ -495,24 +515,24 @@ function ArtistPage({ c, A, page }) {
       {!!albums && !!albums.length && (
         <View style={{ marginTop: 22 }}>
           <Text style={[s.h2, { color: c.fg, marginBottom: 8 }]}>אלבומים וסינגלים</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+          <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
             {albums.slice(0, 20).map((al) => (
               <Card key={al.plId} t={{ title: al.title, thumb: al.thumb, artist: al.releaseYear || '' }} c={c} onPress={() => A.openAlbum(al)} />
             ))}
-          </ScrollView>
+          </HScroll>
         </View>
       )}
       {!!similar && !!similar.length && (
         <View style={{ marginTop: 22 }}>
           <Text style={[s.h2, { color: c.fg, marginBottom: 8 }]}>אמנים דומים</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+          <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
             {similar.slice(0, 15).map((ar) => (
               <Pressable key={ar.id} onPress={() => A.openArtist(ar.name, ar.id)} style={{ width: 110, alignItems: 'center', marginLeft: 12 }}>
                 {ar.avatar ? <Image source={{ uri: ar.avatar }} style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: c.card }} /> : <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: c.card }} />}
                 <Text numberOfLines={1} style={{ color: c.fg, marginTop: 6 }}>{ar.name}</Text>
               </Pressable>
             ))}
-          </ScrollView>
+          </HScroll>
         </View>
       )}
     </View>
@@ -682,7 +702,7 @@ async function resolveMood(m) {
 }
 function MoodTiles({ c, A }) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+    <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
       {MOODS.map((m, i) => (
         <Pressable key={m.name} onPress={() => A.open({ kind: 'mood', mood: m, color: MOOD_COLORS[i % MOOD_COLORS.length], title: m.name })}
           style={{ width: 150, height: 110, borderRadius: 12, marginLeft: 12, padding: 12, justifyContent: 'flex-end', backgroundColor: MOOD_COLORS[i % MOOD_COLORS.length] }}>
@@ -690,7 +710,7 @@ function MoodTiles({ c, A }) {
           <Text numberOfLines={1} style={{ color: '#fff', opacity: 0.85, fontSize: 12, textAlign: 'right' }}>{m.desc}</Text>
         </Pressable>
       ))}
-    </ScrollView>
+    </HScroll>
   );
 }
 function MoodPage({ c, A, page }) {
@@ -714,14 +734,14 @@ function MoodPage({ c, A, page }) {
         </View>
       </View>
       <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 6 }]}>אמנים בתחום</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+      <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
         {artists.map((n) => (
           <Pressable key={n} onPress={() => A.openArtist(n)} style={{ width: 96, alignItems: 'center', marginLeft: 12 }}>
             <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>{(() => { const m = tracks && tracks.find((t) => String(t.artist || '').includes(n)); return m && m.thumb ? <Image source={{ uri: m.thumb }} style={{ width: 80, height: 80 }} /> : <Text style={{ color: RED, fontSize: 28, fontWeight: '800' }}>{n.slice(0, 1)}</Text>; })()}</View>
             <Text numberOfLines={1} style={{ color: c.fg, marginTop: 6 }}>{n}</Text>
           </Pressable>
         ))}
-      </ScrollView>
+      </HScroll>
       <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 6 }]}>שירים</Text>
       {!tracks && <ActivityIndicator color={RED} style={{ margin: 14 }} />}
       {!!tracks && !tracks.length && <Text style={{ color: c.sub, textAlign: 'center', margin: 14 }}>לא נמצאו שירים מאומתים כרגע. נסה שוב בעוד רגע.</Text>}
