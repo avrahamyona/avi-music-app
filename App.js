@@ -138,8 +138,8 @@ function tintBg(t, dark, alpha) {
 }
 
 function PlayerArt({ uri, playing, size, wide }) {
-  const v = useRef(new Animated.Value(playing ? 1 : 0.88)).current;
-  useEffect(() => { Animated.timing(v, { toValue: playing ? 1 : 0.88, duration: 220, easing: Easing.bezier(0.25, 0.1, 0.25, 1), useNativeDriver: false }).start(); }, [playing]);
+  const v = useRef(new Animated.Value(playing ? 1 : 0.8)).current;
+  useEffect(() => { Animated.timing(v, { toValue: playing ? 1 : 0.8, duration: 220, easing: Easing.bezier(0.25, 0.1, 0.25, 1), useNativeDriver: false }).start(); }, [playing]);
   return <Animated.Image source={{ uri }} style={{ width: size, height: size, borderRadius: wide ? 7 : 10, marginTop: 10, backgroundColor: '#8883', transform: [{ scale: v }] }} />;
 }
 
@@ -879,6 +879,7 @@ function AppInner() {
   const [dur, setDur] = useState(0);
   const [full, setFull] = useState(false);
   const [showLyr, setShowLyr] = useState(false);
+  const [showQ, setShowQ] = useState(false);
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState('off');
   const [sheet, setSheet] = useState(null);
@@ -1088,18 +1089,20 @@ function AppInner() {
     </View>
   );
   const bar = (
-    <View style={{ flexDirection: 'row', alignItems: 'center', direction: 'ltr' }}>
-      <Text style={{ color: c.sub, width: 40 }}>{fmt(pos)}</Text>
-      <Pressable onPress={seek} style={{ flex: 1, height: 28, justifyContent: 'center' }} onLayout={(e) => { barW.current = e.nativeEvent.layout.width || 1; }}>
-        <View style={{ height: 4, borderRadius: 2, backgroundColor: c.line }}>
-          <View style={{ height: 4, borderRadius: 2, backgroundColor: RED, width: (dur ? Math.min(100, (pos / dur) * 100) : 0) + '%' }} />
+    <View>
+      <Pressable onPress={seek} style={{ height: 18, justifyContent: 'center' }} onLayout={(e) => { barW.current = e.nativeEvent.layout.width || 1; }}>
+        <View style={{ height: 5, borderRadius: 3, backgroundColor: c.line, overflow: 'hidden' }}>
+          <View style={{ height: 5, backgroundColor: c.fg, width: (dur ? Math.min(100, (pos / dur) * 100) : 0) + '%' }} />
         </View>
       </Pressable>
-      <Text style={{ color: c.sub, width: 40, textAlign: 'left' }}>{fmt(dur)}</Text>
+      <View style={{ flexDirection: 'row', direction: 'ltr', justifyContent: 'space-between', marginTop: 2 }}>
+        <Text style={{ color: c.sub, fontSize: 11.5 }}>{fmt(pos)}</Text>
+        <Text style={{ color: c.sub, fontSize: 11.5 }}>{'-' + fmt(Math.max(0, (dur || 0) - pos))}</Text>
+      </View>
     </View>
   );
   const mini = cur && (
-    <View style={{ position: 'absolute', bottom: wideScreen ? 18 : 78, alignSelf: 'center', width: wideScreen ? 520 : '94%', borderRadius: wideScreen ? 20 : 14, backgroundColor: c.card, ...(Platform.OS === 'web' ? { backgroundColor: tintBg(tint, dark, 0.78) || (dark ? 'rgba(37,37,41,0.62)' : 'rgba(242,242,244,0.62)'), backdropFilter: 'blur(28px) saturate(180%)', WebkitBackdropFilter: 'blur(28px) saturate(180%)' } : null), borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, paddingVertical: 8, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}>
+    <View style={{ position: 'absolute', bottom: wideScreen ? 18 : 78, alignSelf: 'center', width: wideScreen ? 520 : '94%', borderRadius: 14, backgroundColor: c.card, ...(Platform.OS === 'web' ? { backgroundColor: tintBg(tint, dark, 0.78) || (dark ? 'rgba(37,37,41,0.62)' : 'rgba(242,242,244,0.62)'), backdropFilter: 'blur(28px) saturate(180%)', WebkitBackdropFilter: 'blur(28px) saturate(180%)' } : null), borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, paddingVertical: 8, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}>
       <Pressable onPress={() => setFull(true)} style={{ flexDirection: 'row', alignItems: 'center' }}>
         {cur.thumb ? <Image source={{ uri: cur.thumb }} style={{ width: 44, height: 44, borderRadius: 6 }} /> : <View style={{ width: 44, height: 44, borderRadius: 6, backgroundColor: c.card2 }} />}
         <View style={{ flex: 1, marginHorizontal: 10 }}>
@@ -1107,10 +1110,9 @@ function AppInner() {
           <Text numberOfLines={1} style={{ color: c.sub, fontSize: 13, textAlign: 'right' }}>{status || cur.artist}</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', direction: 'ltr' }}>
-          <Pressable onPress={() => setSheet(cur)} style={{ padding: 8 }}><Icon name="dots" size={22} color={c.fg} /></Pressable>
-          <Pressable {...hold(-1, () => go(-1))} style={{ padding: 8 }}><Icon name="prev" size={22} color={c.fg} /></Pressable>
-          <Pressable onPress={() => player.toggle()} style={{ padding: 8 }}><Icon name={playing ? 'pause' : 'play'} size={26} color={c.fg} /></Pressable>
-          <Pressable {...hold(1, () => go(1))} style={{ padding: 8 }}><Icon name="next" size={22} color={c.fg} /></Pressable>
+          <Pressable onPress={() => setSheet(cur)} style={{ width: 32, height: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name="dots" size={22} color={c.fg} /></Pressable>
+          <Pressable {...hold(1, () => go(1))} style={{ width: 40, height: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name="next" size={22} color={c.fg} /></Pressable>
+          <Pressable onPress={() => player.toggle()} style={{ width: 40, height: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name={playing ? 'pause' : 'play'} size={24} color={c.fg} /></Pressable>
         </View>
       </Pressable>
     </View>
@@ -1120,38 +1122,49 @@ function AppInner() {
     <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: wideScreen ? 'rgba(0,0,0,0.55)' : c.bg, alignItems: 'center', justifyContent: 'center' }}>
       {wideScreen && <Pressable onPress={() => setFull(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} />}
       <View style={{ width: wideScreen ? 500 : '100%', height: '100%', maxHeight: wideScreen ? 790 : '100%', backgroundColor: (Platform.OS === 'web' && tintBg(tint, dark, 1)) || c.bg, borderRadius: wideScreen ? 24 : 0, borderWidth: wideScreen ? 1 : 0, borderColor: c.line, padding: 20, paddingTop: Platform.OS === 'web' || Platform.OS === 'windows' || wideScreen ? 20 : 48 }}>
-      <Pressable onPress={() => setFull(false)} style={{ padding: 8 }}><View style={{ alignItems: 'center' }}><Icon name="chevdown" size={28} color={c.sub} /></View></Pressable>
-      <ScrollView contentContainerStyle={{ alignItems: 'center' }}>
-        {cur.thumb ? <PlayerArt uri={cur.thumb} playing={playing} wide={wideScreen} size={wideScreen ? 340 : Math.min(340, width * 0.86)} /> : null}
-        <Text numberOfLines={2} style={{ color: c.fg, fontSize: 19, fontWeight: '700', marginTop: 18, textAlign: 'center' }}>{cur.title}</Text>
-        <Pressable onPress={() => { setFull(false); openArtist(cur.artist, cur.ch); }}>
-          <Text style={{ color: RED, fontSize: 16, marginTop: 4 }}>{cur.artist}</Text>
-        </Pressable>
-        {!!status && <Text style={{ color: c.sub, marginTop: 6, textAlign: 'center' }}>{status}</Text>}
-        <View style={{ width: '100%', maxWidth: 420, marginTop: 16 }}>{bar}</View>
-        <View style={{ marginTop: 6 }}>{ctl(true)}</View>
-        <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', width: '100%', maxWidth: 420, marginTop: 6 }}>
+      <Pressable onPress={() => setFull(false)} style={{ height: 41, alignSelf: 'center', width: 70, alignItems: 'center', justifyContent: 'center' }}><Icon name="chevdown" size={26} color={c.sub} /></Pressable>
+      <ScrollView contentContainerStyle={{ alignItems: 'center', paddingHorizontal: wideScreen ? 13 : 0 }}>
+        <View style={{ height: wideScreen ? 257 : Math.min(300, width * 0.78), alignItems: 'center', justifyContent: 'center' }}>
+          {cur.thumb ? <PlayerArt uri={cur.thumb} playing={playing} wide={wideScreen} size={wideScreen ? 257 : Math.min(300, width * 0.78)} /> : null}
+        </View>
+        <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', width: '100%', maxWidth: 434, marginTop: 14 }}>
+          <Pressable onPress={() => setSheet(cur)} style={{ width: 37, height: 37, alignItems: 'center', justifyContent: 'center' }}><Icon name="dots" size={22} color={c.fg} /></Pressable>
+          <Pressable onPress={() => toggleFav(cur)} style={{ width: 37, height: 37, alignItems: 'center', justifyContent: 'center', marginLeft: 12 }}><Icon name={isFav(cur) ? 'heartfill' : 'heart'} size={22} color={isFav(cur) ? RED : c.fg} /></Pressable>
+          <View style={{ flex: 1, direction: 'rtl', marginLeft: 12 }}>
+            <Text numberOfLines={1} style={{ color: c.fg, fontSize: 19, fontWeight: '700', textAlign: 'right' }}>{cur.title}</Text>
+            <Pressable onPress={() => { setFull(false); openArtist(cur.artist, cur.ch); }}><Text numberOfLines={1} style={{ color: RED, fontSize: 16, textAlign: 'right' }}>{cur.artist}</Text></Pressable>
+          </View>
+        </View>
+        <View style={{ width: '100%', maxWidth: 434, marginTop: 22 }}>{bar}</View>
+        <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: 434, marginTop: 24 }}>
+          <Pressable onPress={() => setRepeat((r) => (r === 'off' ? 'all' : r === 'all' ? 'one' : 'off'))} style={{ width: 35, height: 35, alignItems: 'center', justifyContent: 'center' }}><View><Icon name="repeat" size={20} color={repeat === 'off' ? c.fg : RED} />{repeat === 'one' && <Text style={{ position: 'absolute', right: -2, top: -2, color: RED, fontSize: 9, fontWeight: '800' }}>1</Text>}</View></Pressable>
+          <Pressable {...hold(-1, () => go(-1))} style={{ width: 58, height: 64, alignItems: 'center', justifyContent: 'center' }}><Icon name="rw" size={36} color={c.fg} /></Pressable>
+          <Pressable onPress={() => player.toggle()} style={{ width: 64, height: 64, alignItems: 'center', justifyContent: 'center' }}><Icon name={playing ? 'pause' : 'play'} size={46} color={c.fg} /></Pressable>
+          <Pressable {...hold(1, () => go(1))} style={{ width: 58, height: 64, alignItems: 'center', justifyContent: 'center' }}><Icon name="ff" size={36} color={c.fg} /></Pressable>
+          <Pressable onPress={() => setShuffle((v) => !v)} style={{ width: 35, height: 35, alignItems: 'center', justifyContent: 'center' }}><Icon name="shuffle" size={20} color={shuffle ? RED : c.fg} /></Pressable>
+        </View>
+        <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+          <Pressable {...hold(1, () => player.seek(Math.min(durRef.current || posRef.current + 10, posRef.current + 10)))} style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginHorizontal: 30 }}><Icon name="fwd10" size={22} color={c.fg} /></Pressable>
+          <Pressable {...hold(-1, () => player.seek(Math.max(0, posRef.current - 10)))} style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginHorizontal: 30 }}><Icon name="back10" size={22} color={c.fg} /></Pressable>
+        </View>
+        <Text style={{ color: c.sub, fontSize: 11, marginTop: 8, textAlign: 'center' }}>{'v' + BUILD + ' · ' + (status || (playing ? 'מנגן' : 'מושהה'))}</Text>
+        <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', width: '100%', maxWidth: 434, marginTop: 16 }}>
           <Icon name="vol0" size={16} color={c.sub} />
-          <Pressable onPress={setVolume} style={{ flex: 1, height: 28, justifyContent: 'center', marginHorizontal: 10 }} onLayout={(e) => { volW.current = e.nativeEvent.layout.width || 1; }}>
-            <View style={{ height: 4, borderRadius: 2, backgroundColor: c.line }}><View style={{ height: 4, borderRadius: 2, backgroundColor: c.sub, width: Math.round(vol * 100) + '%' }} /></View>
+          <Pressable onPress={setVolume} style={{ flex: 1, height: 28, justifyContent: 'center', marginHorizontal: 12 }} onLayout={(e) => { volW.current = e.nativeEvent.layout.width || 1; }}>
+            <View style={{ height: 7, borderRadius: 4, backgroundColor: c.line }}><View style={{ height: 7, borderRadius: 4, backgroundColor: c.fg, width: Math.round(vol * 100) + '%' }} /></View>
           </Pressable>
           <Icon name="vol1" size={16} color={c.sub} />
         </View>
-        <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', justifyContent: 'center', marginTop: 4 }}>
-          <Pressable onPress={() => setShuffle((v) => !v)} style={{ padding: 10 }}><Icon name="shuffle" size={22} color={shuffle ? RED : c.sub} /></Pressable>
-          <Pressable {...hold(-1, () => player.seek(Math.max(0, posRef.current - 10)))} style={{ padding: 10 }}><Text style={{ color: c.fg, fontSize: 14, fontWeight: '700' }}>-10</Text></Pressable>
-          <Pressable {...hold(1, () => player.seek(Math.min(durRef.current || posRef.current + 10, posRef.current + 10)))} style={{ padding: 10 }}><Text style={{ color: c.fg, fontSize: 14, fontWeight: '700' }}>+10</Text></Pressable>
-          <Pressable onPress={() => setRepeat((r) => (r === 'off' ? 'all' : r === 'all' ? 'one' : 'off'))} style={{ padding: 10 }}><View><Icon name="repeat" size={22} color={repeat === 'off' ? c.sub : RED} />{repeat === 'one' && <Text style={{ position: 'absolute', right: 6, top: 4, color: RED, fontSize: 9, fontWeight: '800' }}>1</Text>}</View></Pressable>
-        </View>
-        <View style={{ flexDirection: 'row' }}>
-          <Pressable onPress={() => toggleFav(cur)} style={{ padding: 10 }}><Icon name={isFav(cur) ? 'heartfill' : 'heart'} size={26} color={isFav(cur) ? RED : c.sub} /></Pressable>
-          <Pressable onPress={() => setShowLyr((v) => !v)} style={{ padding: 10 }}><Text style={{ color: showLyr ? RED : c.sub, fontSize: 18, fontWeight: '700' }}>מילים</Text></Pressable>
+        <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: 434, marginTop: 14, paddingHorizontal: 8 }}>
+          <Pressable onPress={() => setShowLyr((v) => !v)} style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center' }}><Icon name="lyrics" size={24} color={showLyr ? RED : c.fg} /></Pressable>
+          <Pressable onPress={() => share(cur)} style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center' }}><Icon name="share" size={24} color={c.fg} /></Pressable>
+          <Pressable onPress={() => setShowQ((v) => !v)} style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center' }}><Icon name="queue" size={24} color={showQ ? RED : c.fg} /></Pressable>
         </View>
         {showLyr && <View style={{ width: '100%', maxWidth: 520 }}><Lyrics c={c} cur={cur} pos={pos} dur={dur} /></View>}
-        <Text style={[s.h2, { color: c.fg, alignSelf: 'flex-end', marginTop: 10 }]}>הבא בתור</Text>
-        <View style={{ width: '100%' }}>
+        {showQ && <Text style={[s.h2, { color: c.fg, alignSelf: 'flex-end', marginTop: 10 }]}>הבא בתור</Text>}
+        {showQ && <View style={{ width: '100%' }}>
           {queue.slice(Math.max(0, queue.findIndex((t) => t.id === cur.id) + 1), 40).map((t) => <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center' }}><View style={{ flex: 1 }}><Row t={t} c={c} active={false} fav={isFav(t)} onFav={() => toggleFav(t)} onMore={() => setSheet(t)} onPress={() => play(t)} /></View><View><Pressable onPress={() => moveQ(t.id, -1)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>▲</Text></Pressable><Pressable onPress={() => moveQ(t.id, 1)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>▼</Text></Pressable></View></View>)}
-        </View>
+        </View>}
       </ScrollView>
       </View>
     </View>
