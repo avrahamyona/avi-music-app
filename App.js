@@ -433,7 +433,7 @@ function Browse({ c, A }) {
 }
 const STATIONS = [['להיטי ישראל', 'להיטים ישראלים'], ['מזרחית', 'מוזיקה מזרחית להיטים'], ['שירים חדשים', 'שירים חדשים ישראל'], ['ים-תיכונית', 'ים תיכונית ישראלית'], ['רגוע', 'שירים רגועים ישראל']];
 function Radio({ c, A }) {
-  const mine = topArtists(A.stats).slice(0, 6);
+  const mine = topArtists(A.stats).filter((n) => (A.history || []).concat(A.favs || []).some((t) => String(t.artist).replace(/ - Topic$/i, '') === n && t.thumb)).slice(0, 6);
   const playQ = async (q, mix) => { try { const r = await searchCached(q); if (r.length) { const l = [r[0], ...r.slice(1).sort(() => Math.random() - 0.5)]; A.play(l[0], l); } } catch (e) {} };
   const card = (title, sub, onPress, i, img) => (
     <Pressable key={title + i} onPress={onPress} style={{ height: 96, borderRadius: 14, marginHorizontal: 16, marginTop: 12, backgroundColor: GRADS[i % GRADS.length][0], justifyContent: 'flex-end', padding: 14, overflow: 'hidden' }}>
@@ -445,9 +445,7 @@ function Radio({ c, A }) {
   );
   return (
     <View>
-      {(!!(A.favs || []).length || !!(A.history || []).length) && <Text style={[s.h2, { color: c.fg, marginTop: 6 }]}>תחנה אישית</Text>}
-      {(!!(A.favs || []).length || !!(A.history || []).length) && card('הרדיו שלך', 'שירים שאתה אוהב ועוד כמוהם', () => { const base = (A.favs && A.favs.length ? A.favs : A.history).slice(0, 12); const l = base.sort(() => Math.random() - 0.5); if (l.length) A.play(l[0], l); }, 3, ((A.favs && A.favs.length ? A.favs : A.history)[0] || {}).thumb)}
-      {!!mine.length && <Text style={[s.h2, { color: c.fg, marginTop: 18 }]}>תחנות של אמנים</Text>}
+      {!!mine.length && <Text style={[s.h2, { color: c.fg, marginTop: 6 }]}>תחנות של אמנים</Text>}
       {!!mine.length && (
         <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
           {mine.map((n) => { const tk = (A.history || []).concat(A.favs || []).find((t) => String(t.artist).replace(/ - Topic$/i, '') === n); return (
@@ -458,6 +456,8 @@ function Radio({ c, A }) {
             </Pressable>); })}
         </HScroll>
       )}
+      {(!!(A.favs || []).length || !!(A.history || []).length) && <Text style={[s.h2, { color: c.fg, marginTop: 18 }]}>תחנה אישית</Text>}
+      {(!!(A.favs || []).length || !!(A.history || []).length) && card('הרדיו שלך', 'שירים שאתה אוהב ועוד כמוהם', () => { const base = (A.favs && A.favs.length ? A.favs : A.history).slice(0, 12); const l = base.sort(() => Math.random() - 0.5); if (l.length) A.play(l[0], l); }, 3, ((A.favs && A.favs.length ? A.favs : A.history)[0] || {}).thumb)}
       <Text style={[s.h2, { color: c.fg, marginTop: 18 }]}>תחנות</Text>
       {STATIONS.map(([n, q], i) => (
         <Pressable key={n} onPress={async () => { try { const r = await searchCached(q); if (r.length) A.play(r[0], r.slice().sort(() => Math.random() - 0.5).length ? [r[0], ...r.slice(1).sort(() => Math.random() - 0.5)] : r); } catch (e) {} }}
