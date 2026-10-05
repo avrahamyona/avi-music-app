@@ -881,7 +881,41 @@ function AppInner() {
     return () => { off(); o1(); o2(); };
   }, []);
 
+  const posRef = useRef(0);
+  const durRef = useRef(0);
+  const playingRef = useRef(false);
+  posRef.current = pos; durRef.current = dur; playingRef.current = playing;
+  const holdRef = useRef(null);
+  const finishHold = (commit) => {
+    const h = holdRef.current;
+    if (!h) return;
+    holdRef.current = null;
+    clearTimeout(h.delay); clearInterval(h.interval);
+    if (h.long) { player.seek(h.cur); if (h.wasPlaying) player.toggle(); }
+    else if (commit) h.tap();
+  };
+  // Tap = normal action. Hold 200 ms = scrub (8x, then 16x after 2 s), release resumes.
+  const hold = (dir, tap) => ({
+    onPressIn: () => {
+      finishHold(false);
+      const h = { dir, tap, long: false };
+      holdRef.current = h;
+      h.delay = setTimeout(() => {
+        if (holdRef.current !== h) return;
+        h.long = true; h.start = posRef.current; h.cur = h.start; h.wasPlaying = playingRef.current; h.at = Date.now();
+        if (h.wasPlaying) player.toggle();
+        h.interval = setInterval(() => {
+          const el = (Date.now() - h.at) / 1000;
+          const d = Math.min(el, 2) * 8 + Math.max(0, el - 2) * 16;
+          h.cur = Math.max(0, Math.min(durRef.current || 1e9, h.start + dir * d));
+          player.seek(h.cur); setPos(h.cur);
+        }, 120);
+      }, 200);
+    },
+    onPressOut: () => finishHold(true),
+  });
   const go = (d, auto) => {
+    if (d < 0 && !auto && posRef.current >= 3 && curRef.current) { player.seek(0); setPos(0); return; }
     const list = queueRef.current;
     const cc = curRef.current;
     const i = cc ? list.findIndex((t) => t.id === cc.id) : -1;
@@ -989,9 +1023,9 @@ function AppInner() {
 
   const ctl = (big) => (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', direction: 'ltr' }}>
-      <Pressable onPress={() => go(-1)} style={s.skip}><Icon name="prev" size={big ? 34 : 22} color={c.fg} /></Pressable>
+      <Pressable {...hold(-1, () => go(-1))} style={s.skip}><Icon name="prev" size={big ? 34 : 22} color={c.fg} /></Pressable>
       <Pressable onPress={() => player.toggle()} style={[s.play, big && { width: 64, height: 64, borderRadius: 32 }]}><Icon name={playing ? 'pause' : 'play'} size={big ? 34 : 24} color="#fff" /></Pressable>
-      <Pressable onPress={() => go(1)} style={s.skip}><Icon name="next" size={big ? 34 : 22} color={c.fg} /></Pressable>
+      <Pressable {...hold(1, () => go(1))} style={s.skip}><Icon name="next" size={big ? 34 : 22} color={c.fg} /></Pressable>
     </View>
   );
   const bar = (
@@ -1015,9 +1049,9 @@ function AppInner() {
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', direction: 'ltr' }}>
           <Pressable onPress={() => setSheet(cur)} style={{ padding: 8 }}><Icon name="dots" size={22} color={c.fg} /></Pressable>
-          <Pressable onPress={() => go(-1)} style={{ padding: 8 }}><Icon name="prev" size={22} color={c.fg} /></Pressable>
+          <Pressable {...hold(-1, () => go(-1))} style={{ padding: 8 }}><Icon name="prev" size={22} color={c.fg} /></Pressable>
           <Pressable onPress={() => player.toggle()} style={{ padding: 8 }}><Icon name={playing ? 'pause' : 'play'} size={26} color={c.fg} /></Pressable>
-          <Pressable onPress={() => go(1)} style={{ padding: 8 }}><Icon name="next" size={22} color={c.fg} /></Pressable>
+          <Pressable {...hold(1, () => go(1))} style={{ padding: 8 }}><Icon name="next" size={22} color={c.fg} /></Pressable>
         </View>
       </Pressable>
     </View>
@@ -1046,8 +1080,8 @@ function AppInner() {
         </View>
         <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', justifyContent: 'center', marginTop: 4 }}>
           <Pressable onPress={() => setShuffle((v) => !v)} style={{ padding: 10 }}><Icon name="shuffle" size={22} color={shuffle ? RED : c.sub} /></Pressable>
-          <Pressable onPress={() => player.seek(Math.max(0, pos - 10))} style={{ padding: 10 }}><Text style={{ color: c.fg, fontSize: 14, fontWeight: '700' }}>-10</Text></Pressable>
-          <Pressable onPress={() => player.seek(Math.min(dur || pos + 10, pos + 10))} style={{ padding: 10 }}><Text style={{ color: c.fg, fontSize: 14, fontWeight: '700' }}>+10</Text></Pressable>
+          <Pressable {...hold(-1, () => player.seek(Math.max(0, posRef.current - 10)))} style={{ padding: 10 }}><Text style={{ color: c.fg, fontSize: 14, fontWeight: '700' }}>-10</Text></Pressable>
+          <Pressable {...hold(1, () => player.seek(Math.min(durRef.current || posRef.current + 10, posRef.current + 10)))} style={{ padding: 10 }}><Text style={{ color: c.fg, fontSize: 14, fontWeight: '700' }}>+10</Text></Pressable>
           <Pressable onPress={() => setRepeat((r) => (r === 'off' ? 'all' : r === 'all' ? 'one' : 'off'))} style={{ padding: 10 }}><View><Icon name="repeat" size={22} color={repeat === 'off' ? c.sub : RED} />{repeat === 'one' && <Text style={{ position: 'absolute', right: 6, top: 4, color: RED, fontSize: 9, fontWeight: '800' }}>1</Text>}</View></Pressable>
         </View>
         <View style={{ flexDirection: 'row' }}>
