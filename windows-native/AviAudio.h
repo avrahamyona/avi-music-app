@@ -63,6 +63,17 @@ struct AviAudio {
     } catch (...) {}
   }
 
+  REACT_METHOD(SetVolume, L"setVolume")
+  void SetVolume(double v) noexcept {
+    try {
+      Ensure();
+      if (v < 0) v = 0;
+      if (v > 1) v = 1;
+      m_vol = v;
+      m_player.Volume(v);
+    } catch (...) {}
+  }
+
   REACT_METHOD(GetItem, L"getItem")
   void GetItem(std::string key, winrt::Microsoft::ReactNative::ReactPromise<std::string> &&result) noexcept {
     try {
@@ -118,12 +129,14 @@ struct AviAudio {
     using namespace winrt::Windows::Media::Playback;
     m_player = MediaPlayer();
     m_player.AutoPlay(false);
+    m_player.Volume(m_vol);
     m_player.MediaOpened([this](auto &&, auto &&) { Settle(true); });
     m_player.MediaFailed([this](auto &&, auto &&) { Settle(false); });
     m_player.MediaEnded([this](auto &&, auto &&) { m_ended = true; });
   }
 
   winrt::Microsoft::ReactNative::ReactContext m_ctx;
+  double m_vol{1.0};
   winrt::Windows::Media::Playback::MediaPlayer m_player{nullptr};
   std::mutex m_mu;
   std::shared_ptr<winrt::Microsoft::ReactNative::ReactPromise<bool>> m_pending;
