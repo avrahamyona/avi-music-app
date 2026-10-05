@@ -4,6 +4,7 @@ import { WORKER } from './config';
 const subs = new Set();
 const emit = (s) => subs.forEach((f) => f(s));
 let sound = null;
+let vol = 1;
 let handlers = {};
 
 export async function init() {
@@ -47,7 +48,7 @@ export async function load(track) {
   if (sound) { await sound.unloadAsync().catch(() => {}); sound = null; }
   lastTrack = track;
   try {
-    const r = await Audio.Sound.createAsync({ uri: WORKER + '/audio/' + track.id }, { shouldPlay: true }, onStatus);
+    const r = await Audio.Sound.createAsync({ uri: WORKER + '/audio/' + track.id }, { shouldPlay: true, volume: vol }, onStatus);
     if (!r.status.isLoaded) { await r.sound.unloadAsync().catch(() => {}); return false; }
     sound = r.sound;
     meta(track, true);
@@ -61,3 +62,5 @@ export async function toggle() {
   if (st.isLoaded) { if (st.isPlaying) await sound.pauseAsync(); else await sound.playAsync(); }
 }
 export async function seek(sec) { if (sound) await sound.setPositionAsync(sec * 1000); }
+
+export async function setVolume(v) { vol = Math.max(0, Math.min(1, v)); if (sound) await sound.setVolumeAsync(vol).catch(() => {}); }
