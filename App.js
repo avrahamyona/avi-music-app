@@ -103,6 +103,12 @@ function Card({ t, onPress, c, wide, sub }) {
   );
 }
 
+function FadeIn({ k, children }) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => { v.setValue(0); Animated.timing(v, { toValue: 1, duration: 200, easing: Easing.out(Easing.quad), useNativeDriver: false }).start(); }, [k]);
+  return <Animated.View style={{ flex: 1, opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] }}>{children}</Animated.View>;
+}
+
 function PlayerArt({ uri, playing, size, wide }) {
   const v = useRef(new Animated.Value(playing ? 1 : 0.88)).current;
   useEffect(() => { Animated.timing(v, { toValue: playing ? 1 : 0.88, duration: 220, easing: Easing.bezier(0.25, 0.1, 0.25, 1), useNativeDriver: false }).start(); }, [playing]);
@@ -927,7 +933,7 @@ export default function App() {
     </View>
   );
   const mini = cur && (
-    <View style={{ position: 'absolute', bottom: wideScreen ? 18 : 78, alignSelf: 'center', width: wideScreen ? 520 : '94%', borderRadius: wideScreen ? 20 : 14, backgroundColor: c.card, borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, paddingVertical: 8, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}>
+    <View style={{ position: 'absolute', bottom: wideScreen ? 18 : 78, alignSelf: 'center', width: wideScreen ? 520 : '94%', borderRadius: wideScreen ? 20 : 14, backgroundColor: c.card, ...(Platform.OS === 'web' ? { backgroundColor: dark ? 'rgba(37,37,41,0.62)' : 'rgba(242,242,244,0.62)', backdropFilter: 'blur(28px) saturate(180%)', WebkitBackdropFilter: 'blur(28px) saturate(180%)' } : null), borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, paddingVertical: 8, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}>
       <Pressable onPress={() => setFull(true)} style={{ flexDirection: 'row', alignItems: 'center' }}>
         {cur.thumb ? <Image source={{ uri: cur.thumb }} style={{ width: 44, height: 44, borderRadius: 6 }} /> : <View style={{ width: 44, height: 44, borderRadius: 6, backgroundColor: c.card2 }} />}
         <View style={{ flex: 1, marginHorizontal: 10 }}>
@@ -1046,11 +1052,11 @@ export default function App() {
               <Pressable onPress={() => setOverride(dark ? 'light' : 'dark')} style={s.theme}><Text style={{ color: c.fg, fontSize: 20 }}>{dark ? '☀️' : '🌙'}</Text></Pressable>
             </View>
           )}
-          {content}
+          <FadeIn k={tab + '|' + pages.length + '|' + (page && (page.title || page.kind))}>{content}</FadeIn>
           {mini}
           {!wideScreen && (
             <View style={{ paddingHorizontal: 10, paddingBottom: 6, paddingTop: 4, backgroundColor: c.bg }}>
-            <View style={{ flexDirection: 'row', height: 56, borderRadius: 20, backgroundColor: c.card, borderWidth: StyleSheet.hairlineWidth, borderColor: c.line, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 }}>
+            <View style={{ flexDirection: 'row', height: 56, borderRadius: 20, backgroundColor: c.card, ...(Platform.OS === 'web' ? { backgroundColor: dark ? 'rgba(37,37,41,0.62)' : 'rgba(242,242,244,0.62)', backdropFilter: 'blur(28px) saturate(180%)', WebkitBackdropFilter: 'blur(28px) saturate(180%)' } : null), borderWidth: StyleSheet.hairlineWidth, borderColor: c.line, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 }}>
               {TABS.map((x) => (
                 <Pressable key={x.k} onPress={() => nav(x.k)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', margin: 5, borderRadius: 15, gap: 3, backgroundColor: tab === x.k ? c.card2 : 'transparent' }}>
                   <Icon name={x.i} size={24} color={tab === x.k ? RED : c.sub} />
