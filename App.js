@@ -5,13 +5,16 @@ import {
 } from 'react-native';
 import * as player from './player';
 import { warm as warmAudio } from './audioSrc';
-import { bus } from './bus';
+import * as BusMod from './bus';
 import * as store from './storage';
-import { WORKER } from './config';
-import { MOODS } from './moods';
+import * as CfgMod from './config';
+import * as MoodsMod from './moods';
 import Icon, { MoodArt, MOOD_KIND } from './Icon';
 
 const VERSION = '0.2.0';
+const WORKER = (CfgMod && CfgMod.WORKER) || 'https://avi-music-audio.avi-music.workers.dev';
+const MOODS = (MoodsMod && MoodsMod.MOODS) || [];
+const bus = (BusMod && BusMod.bus) || { on() { return () => {}; }, emit() {} };
 const BUILD = (typeof process !== 'undefined' && process.env && process.env.EXPO_PUBLIC_BUILD) || 'dev';
 const PIPED = [
   'https://api.piped.private.coffee',
