@@ -34,3 +34,4 @@ export async function load(track) {
 }
 export async function toggle() { if (Native) await Native.toggle(); }
 export async function seek(sec) { if (Native) await Native.seek(sec); }
+export async function setVolume(v) { if (Native && Native.setVolume) { try { await Native.setVolume(Math.max(0, Math.min(1, v))); } catch (e) {} } }
