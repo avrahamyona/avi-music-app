@@ -239,15 +239,27 @@ function Row({ t, onPress, c, active, fav, onFav, onMore, num }) {
 }
 
 // A shelf that loads one search and paints cards, like the website's home sections.
-function Shelf({ title, query, c, A, wide, rows, limit = 12, hideIfEmpty }) {
+function Shelf({ title, query, queries, c, A, wide, rows, limit = 12, hideIfEmpty }) {
   const [items, setItems] = useState(null);
   const [tries, setTries] = useState(0);
   useEffect(() => {
     let live = true;
     setItems(null);
-    searchCached(query).then((r) => { if (live) setItems(r); }).catch(() => { if (live) setItems([]); });
+    if (queries && queries.length) {
+      Promise.all(queries.map((q) => searchCached(q).catch(() => []))).then((all) => {
+        if (!live) return;
+        const out = []; const ids = new Set(); const titles = new Set(); const perArtist = {};
+        for (let k = 0; k < 4; k++) for (const lst of all) {
+          const t = lst[k]; if (!t || ids.has(t.id)) continue;
+          const an = norm(String(t.artist).replace(/ - Topic$/i, '')); const nt = norm(t.title);
+          if ((perArtist[an] || 0) >= 2 || titles.has(nt)) continue;
+          ids.add(t.id); titles.add(nt); perArtist[an] = (perArtist[an] || 0) + 1; out.push(t);
+        }
+        setItems(out);
+      });
+    } else searchCached(query).then((r) => { if (live) setItems(r); }).catch(() => { if (live) setItems([]); });
     return () => { live = false; };
-  }, [query, tries]);
+  }, [query, tries, queries ? queries.join('|') : '']);
   if (items && !items.length && hideIfEmpty) return null;
   return (
     <View style={{ marginTop: 22 }}>
@@ -310,25 +322,12 @@ function Home({ c, A }) {
           </HScroll>
         ) : <Text style={{ color: c.sub, textAlign: 'right', marginHorizontal: 16, marginTop: 8 }}>נגן משהו ונתחיל להכיר את הטעם שלך.</Text>}
       </View>
-      {!!seeds.length && <Shelf title="עוד מהאמנים שלך" query={seeds[0] + ' שירים'} c={c} A={A} />}
+      {!!seeds.length && <Shelf title="עוד מהאמנים שלך" queries={seeds.slice(0, 6).map((n) => n + ' שירים')} c={c} A={A} />}
       <Shelf title="השירים החדשים הטובים ביותר" query="שירים חדשים ישראל" c={c} A={A} rows />
       <Shelf title="מוזיקה חדשה" query="שירים פופולריים ישראל" c={c} A={A} />
       <Shelf title="כולם מקשיבים ל..." query="להיטים ישראלים" c={c} A={A} wide />
-      {seeds.length > 1 && <Shelf title="עוד שירים בשבילך" query={seeds[1] + ' להיטים'} c={c} A={A} />}
+      {seeds.length > 1 && <Shelf title="עוד שירים בשבילך" queries={seeds.slice(1, 7).map((n) => n + ' להיטים')} c={c} A={A} />}
       {!!seeds.length && <PersonalAlbums c={c} A={A} names={seeds.slice(0, 6)} chs={seeds.slice(0, 3).map((n) => { const tk = byArtist(n); return tk && tk.ch; }).filter(Boolean)} />}
-      {!!seeds.length && (
-        <View style={{ marginTop: 22 }}>
-          <Text style={[s.h2, { color: c.fg, marginHorizontal: 16, textAlign: 'right' }]}>אמנים מועדפים</Text>
-          <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
-            {seeds.slice(0, 6).map((n) => { const tk = byArtist(n); return (
-              <Pressable key={n} onPress={() => A.openArtist(n, tk && tk.ch)} style={{ width: 110, marginLeft: 12, alignItems: 'center' }}>
-                <View style={{ width: 100, height: 100, borderRadius: 50, overflow: 'hidden', backgroundColor: c.card }}>{tk && tk.thumb ? <Image source={{ uri: tk.thumb }} style={{ width: 100, height: 100 }} /> : null}</View>
-                <Text numberOfLines={1} style={{ color: c.fg, fontWeight: '700', fontSize: 14, marginTop: 8 }}>{n}</Text>
-                <Text numberOfLines={1} style={{ color: c.sub, fontSize: 12 }}>התחנה שלו</Text>
-              </Pressable>); })}
-          </HScroll>
-        </View>
-      )}
       {!!seeds.length && (
         <View style={{ marginTop: 22 }}>
           <Text style={[s.h2, { color: c.fg, marginHorizontal: 16, textAlign: 'right' }]}>תחנות מומלצות לפי האמנים שלך</Text>
@@ -338,6 +337,19 @@ function Home({ c, A }) {
                 <View style={{ width: 100, height: 100, borderRadius: 50, overflow: 'hidden', backgroundColor: c.card }}>{tk && tk.thumb ? <Image source={{ uri: tk.thumb }} style={{ width: 100, height: 100 }} /> : null}</View>
                 <Text numberOfLines={1} style={{ color: c.fg, fontWeight: '700', fontSize: 14, marginTop: 8 }}>{n}</Text>
                 <Text numberOfLines={1} style={{ color: c.sub, fontSize: 12 }}>{'התחנה של ' + n}</Text>
+              </Pressable>); })}
+          </HScroll>
+        </View>
+      )}
+      {!!seeds.length && (
+        <View style={{ marginTop: 22 }}>
+          <Text style={[s.h2, { color: c.fg, marginHorizontal: 16, textAlign: 'right' }]}>אמנים מועדפים</Text>
+          <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
+            {seeds.slice(0, 6).map((n) => { const tk = byArtist(n); return (
+              <Pressable key={n} onPress={() => A.openArtist(n, tk && tk.ch)} style={{ width: 110, marginLeft: 12, alignItems: 'center' }}>
+                <View style={{ width: 100, height: 100, borderRadius: 50, overflow: 'hidden', backgroundColor: c.card }}>{tk && tk.thumb ? <Image source={{ uri: tk.thumb }} style={{ width: 100, height: 100 }} /> : null}</View>
+                <Text numberOfLines={1} style={{ color: c.fg, fontWeight: '700', fontSize: 14, marginTop: 8 }}>{n}</Text>
+                <Text numberOfLines={1} style={{ color: c.sub, fontSize: 12 }}>התחנה שלו</Text>
               </Pressable>); })}
           </HScroll>
         </View>
@@ -1600,13 +1612,13 @@ function AppInner() {
     </View>
   );
   const mini = cur && (
-    <View style={{ position: 'absolute', bottom: wideScreen ? 18 : 78, alignSelf: 'center', width: wideScreen ? 520 : '94%', borderRadius: 14, backgroundColor: c.card, ...(Platform.OS === 'web' ? { backgroundColor: tintBg(tint, dark, 0.78) || (dark ? 'rgba(37,37,41,0.62)' : 'rgba(242,242,244,0.62)'), backdropFilter: 'blur(28px) saturate(180%)', WebkitBackdropFilter: 'blur(28px) saturate(180%)' } : null), borderWidth: 1, borderColor: c.line, overflow: BlurView ? 'hidden' : 'visible', paddingHorizontal: 10, paddingVertical: 8, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}>
+    <View style={{ position: 'absolute', bottom: wideScreen ? 18 : 88, alignSelf: 'center', width: wideScreen ? 520 : 358, maxWidth: '96%', height: wideScreen ? undefined : 56, justifyContent: 'center', borderRadius: wideScreen ? 14 : 28, backgroundColor: c.card, ...(Platform.OS === 'web' ? { backgroundColor: tintBg(tint, dark, 0.78) || (dark ? 'rgba(37,37,41,0.62)' : 'rgba(242,242,244,0.62)'), backdropFilter: 'blur(28px) saturate(180%)', WebkitBackdropFilter: 'blur(28px) saturate(180%)' } : null), borderWidth: 1, borderColor: c.line, overflow: BlurView ? 'hidden' : 'visible', paddingHorizontal: wideScreen ? 10 : 8, paddingVertical: wideScreen ? 8 : 0, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}>
       {BlurView ? <BlurView intensity={55} tint={dark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} /> : null}
       <Pressable onPress={() => setFull(true)} style={{ flexDirection: 'row', alignItems: 'center' }}>
-        {cur.thumb ? <Image source={{ uri: cur.thumb }} style={{ width: 44, height: 44, borderRadius: 6 }} /> : <View style={{ width: 44, height: 44, borderRadius: 6, backgroundColor: c.card2 }} />}
+        {cur.thumb ? <Image source={{ uri: cur.thumb }} style={{ width: wideScreen ? 44 : 42, height: wideScreen ? 44 : 42, borderRadius: wideScreen ? 6 : 7 }} /> : <View style={{ width: 42, height: 42, borderRadius: 7, backgroundColor: c.card2 }} />}
         <View style={{ flex: 1, marginHorizontal: 10 }}>
-          <Text numberOfLines={1} style={{ color: c.fg, fontWeight: '600', textAlign: 'right' }}>{cur.title}</Text>
-          <Text numberOfLines={1} style={{ color: c.sub, fontSize: 13, textAlign: 'right' }}>{status || cur.artist}</Text>
+          <Text numberOfLines={1} style={{ color: c.fg, fontWeight: '500', fontSize: wideScreen ? 16 : 15, textAlign: 'right' }}>{cur.title}</Text>
+          <Text numberOfLines={1} style={{ color: c.sub, fontSize: wideScreen ? 13 : 12, textAlign: 'right' }}>{status || cur.artist}</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', direction: 'ltr' }}>
           <Pressable onPress={() => setSheet(cur)} style={{ width: 32, height: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name="dots" size={22} color={c.fg} /></Pressable>
@@ -1620,7 +1632,8 @@ function AppInner() {
   const fullView = full && cur && (
     <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: wideScreen ? 'rgba(0,0,0,0.55)' : c.bg, alignItems: 'center', justifyContent: 'center' }}>
       {wideScreen && <Pressable onPress={() => setFull(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} />}
-      <View style={{ width: wideScreen ? 500 : '100%', height: '100%', maxHeight: wideScreen ? 655 : '100%', backgroundColor: (Platform.OS === 'web' && tintBg(tint, dark, 1)) || c.bg, borderRadius: wideScreen ? 24 : 0, borderWidth: wideScreen ? 1 : 0, borderColor: c.line, padding: 20, paddingTop: Platform.OS === 'web' || Platform.OS === 'windows' || wideScreen ? 20 : 48 }}>
+      <View style={{ width: wideScreen ? 500 : '100%', height: '100%', maxHeight: wideScreen ? 655 : '100%', backgroundColor: (Platform.OS === 'web' && tintBg(tint, dark, 1)) || c.bg, borderRadius: wideScreen ? 24 : 0, overflow: 'hidden', borderWidth: wideScreen ? 1 : 0, borderColor: c.line, padding: 20, paddingTop: Platform.OS === 'web' || Platform.OS === 'windows' || wideScreen ? 20 : 48 }}>
+      {!!cur.thumb && Platform.OS !== 'windows' && <Image source={{ uri: cur.thumb }} blurRadius={Platform.OS === 'web' ? 0 : 45} resizeMode="cover" style={[{ position: 'absolute', top: -40, left: -40, right: -40, bottom: -40, width: '120%', height: '120%', opacity: dark ? 0.55 : 0.6 }, Platform.OS === 'web' ? { filter: 'blur(48px) saturate(1.3)' } : null]} />}
       <Pressable onPress={() => setFull(false)} style={{ height: 41, alignSelf: 'center', width: 70, alignItems: 'center', justifyContent: 'center' }}><Icon name="chevdown" size={26} color={c.sub} /></Pressable>
       {!wideScreen && <Text style={{ position: 'absolute', top: 10, right: 12, color: c.sub, fontSize: 10 }}>{'v' + BUILD + ' · ' + (status || (playing ? 'מנגן' : 'מושהה'))}</Text>}
       <ScrollView style={{ backgroundColor: 'transparent' }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ alignItems: 'center', paddingHorizontal: wideScreen ? 13 : 0 }}>
@@ -1760,11 +1773,11 @@ function AppInner() {
           <FadeIn k={tab + '|' + pages.length + '|' + (page && (page.title || page.kind))}>{content}</FadeIn>
           {mini}
           {!wideScreen && (
-            <View style={{ paddingHorizontal: 10, paddingBottom: 6, paddingTop: 4, backgroundColor: c.bg }}>
-            <View style={{ flexDirection: 'row', height: 56, borderRadius: 20, backgroundColor: c.card, ...(Platform.OS === 'web' ? { backgroundColor: dark ? 'rgba(37,37,41,0.62)' : 'rgba(242,242,244,0.62)', backdropFilter: 'blur(28px) saturate(180%)', WebkitBackdropFilter: 'blur(28px) saturate(180%)' } : null), borderWidth: StyleSheet.hairlineWidth, borderColor: c.line, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 }}>
+            <View style={{ paddingHorizontal: 16, paddingBottom: 12, paddingTop: 4, backgroundColor: c.bg }}>
+            <View style={{ flexDirection: 'row', height: 58, borderRadius: 32, backgroundColor: c.card, ...(Platform.OS === 'web' ? { backgroundColor: dark ? 'rgba(37,37,41,0.62)' : 'rgba(242,242,244,0.62)', backdropFilter: 'blur(28px) saturate(180%)', WebkitBackdropFilter: 'blur(28px) saturate(180%)' } : null), borderWidth: StyleSheet.hairlineWidth, borderColor: c.line, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 }}>
               {BlurView ? <BlurView intensity={55} tint={dark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} /> : null}
               {TABS.map((x) => (
-                <Pressable key={x.k} onPress={() => nav(x.k)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', margin: 5, borderRadius: 15, gap: 3, backgroundColor: tab === x.k ? c.card2 : 'transparent' }}>
+                <Pressable key={x.k} onPress={() => nav(x.k)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', margin: 5, borderRadius: 26, gap: 3, backgroundColor: tab === x.k ? c.card2 : 'transparent' }}>
                   <Icon name={x.i} size={24} color={tab === x.k ? RED : c.sub} />
                   <Text style={{ color: tab === x.k ? RED : c.sub, fontSize: 10, fontWeight: '500' }}>{x.t}</Text>
                 </Pressable>
