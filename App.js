@@ -114,7 +114,7 @@ function HScroll({ children, contentContainerStyle, ...rest }) {
   const off = useRef(0);
   const [w, setW] = useState(0);
   const web = Platform.OS === 'web';
-  const step = (d) => { const to = off.current + d * Math.max(200, w * 0.8); if (ref.current && ref.current.scrollTo) ref.current.scrollTo({ x: to, animated: true }); };
+  const step = (d) => { const n = ref.current && ref.current.getScrollableNode && ref.current.getScrollableNode(); if (n && n.scrollBy) n.scrollBy({ left: -d * Math.max(200, w * 0.8), behavior: 'smooth' }); };
   const arrow = (d, side) => (
     <Pressable onPress={() => step(d)} style={{ position: 'absolute', top: '40%', [side]: 6, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(40,40,44,0.85)', alignItems: 'center', justifyContent: 'center', zIndex: 5 }}>
       <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{d < 0 ? '›' : '‹'}</Text>
