@@ -85,7 +85,7 @@ const GRADS = [['#fa2d48', '#ff7a45'], ['#5e5ce6', '#9a6bff'], ['#0a84ff', '#30d
 
 const TABS = [
   { k: 'home', t: 'בית', i: 'home' },
-  { k: 'browse', t: 'עיון', i: 'browse' },
+  { k: 'browse', t: 'חדש', i: 'browse' },
   { k: 'radio', t: 'רדיו', i: 'radio' },
   { k: 'lib', t: 'ספרייה', i: 'library' },
   { k: 'search', t: 'חיפוש', i: 'search' },
