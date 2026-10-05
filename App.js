@@ -414,12 +414,13 @@ function Library({ c, A }) {
     <View>
       {!sec ? (
         <View style={{ marginTop: 8 }}>
-          {[['fav', 'שירים אהובים (' + (A.favs || []).length + ')'], ['hist', 'הושמע לאחרונה (' + (A.history || []).length + ')'], ['artists', 'אמנים (' + ((A.follows || {}).artists || []).length + ')'], ['albums', 'אלבומים (' + ((A.follows || {}).albums || []).length + ')'], ['stats', 'ההאזנה שלך · יום, שבוע, חודש והכול'], ['pls', 'ייבוא פלייליסט מיוטיוב'], ['pls', 'רשימות (' + (A.playlists || []).length + ')']].map(([k, n], i) => (
-            <Pressable key={n} onPress={() => setSec(k)} style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#8884' }}>
-              <Text style={{ color: c.sub, fontSize: 20 }}>‹</Text>
-              <Text style={{ flex: 1, color: c.fg, fontSize: 16, textAlign: 'right' }}>{n}</Text>
+          {[['fav', 'שירים אהובים (' + (A.favs || []).length + ')'], ['hist', 'הושמע לאחרונה (' + (A.history || []).length + ')'], ['artists', 'אמנים (' + ((A.follows || {}).artists || []).length + ')'], ['albums', 'אלבומים (' + ((A.follows || {}).albums || []).length + ')'], ['stats', 'ההאזנה שלך · יום, שבוע, חודש והכול'], ['pls', 'ייבוא פלייליסט מיוטיוב'], ['pls', 'רשימות (' + (A.playlists || []).length + ')']].map(([k, n], i) => { const ic = { fav: 'heartfill', hist: 'clock', artists: 'playc', albums: 'library' }[k]; const plain = k === 'stats' || (k === 'pls' && i === 5); return (
+            <Pressable key={n} onPress={() => setSec(k)} style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', paddingVertical: plain ? 12 : 14, paddingHorizontal: 16, borderBottomWidth: plain ? 0 : StyleSheet.hairlineWidth, borderBottomColor: '#8884' }}>
+              {!plain && <Text style={{ color: c.sub, fontSize: 18 }}>‹</Text>}
+              <Text style={{ flex: 1, color: c.fg, fontSize: plain ? 15 : 17, textAlign: 'right' }}>{n}</Text>
+              {!!ic && <View style={{ marginLeft: 12 }}><Icon name={ic} size={24} color={RED} /></View>}
             </Pressable>
-          ))}
+          );})}
         </View>
       ) : (
         <Pressable onPress={() => setSec(null)} style={{ paddingHorizontal: 16, paddingVertical: 10 }}><Text style={{ color: RED, fontSize: 16, textAlign: 'right' }}>{'ספריה ›'}</Text></Pressable>
