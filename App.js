@@ -506,6 +506,33 @@ function Library({ c, A }) {
   );
 }
 const GENRES = [['מוזיקה עברית', 'מוזיקה עברית להיטים'], ['מזרחית', 'מזרחית להיטים'], ['מוזיקה פופ - ים תיכונית', 'פופ ים תיכוני'], ['מוזיקה יהודית', 'מוזיקה יהודית'], ['הופעות', 'הופעה חיה'], ['מוזיקה ערבית אמיתית', 'מוזיקה ערבית'], ['מוזיקה ערבית ישראלית', 'ערבית ישראלית'], ['מוזיקה חדשה', 'שירים חדשים']];
+const ARAB_REP = {
+  'מוזיקה ערבית ישראלית': [
+    ['משה חבושה אל בעניי', (t) => /משה חבושה/.test(t.title + ' ' + t.artist) && /אל בע[נו]יי?|אל בעוני|א-ל בעוני/.test(t.title), 2],
+    ['משה חבושה אלי חסרה', (t) => /משה חבושה/.test(t.title + ' ' + t.artist) && /אלי חסרה/.test(t.title), 2],
+    ['ציון יחזקאל אל גליל', (t) => t.ch === 'UCHJEA-zPIdyjpIiUmwF7rNg' && t.title === 'אל גליל', 2],
+    ['ציון יחזקאל אל בעוני הבט', (t) => t.ch === 'UCHJEA-zPIdyjpIiUmwF7rNg' && t.title === 'אל בעוני הבט', 2],
+    ['יובל טייב מחרוזת הבדלה', (t) => t.ch === 'UCJ9MOj5CuA0gaehrxG5usMw' && t.title === 'מחרוזת הבדלה', 2],
+    ['משה חבושה אל בעוני הבט תפארת הפיוט', (t) => t.ch === 'UCvQ-FLyMnStA953qDSa8NIA' && /משה חבושה/.test(t.title) && /אל בעוני/.test(t.title), 2],
+    ['יחיאל נהרי אל בעניי הבט', (t) => t.ch === 'UCNGMSfhi-Mh_B_Fc5hQbX-w' && /אל בעניי הבט/.test(t.title), 2],
+    ['יחיאל נהרי פאר נעטר', (t) => /יחיאל נהרי/.test(t.title) && /פאר נעטר/.test(t.title), 2],
+    ['עופר לוי פיוטי סליחות', (t) => /עופר לוי/.test(t.artist) && t.title === 'פיוטי סליחות', 2],
+  ],
+  'מוזיקה ערבית אמיתית': [
+    ['أم كلثوم إنت عمري', (t) => t.ch === 'UCMi73zodlL6dMA8tyJDOClw' && t.title === 'انت عمري', 3],
+    ['Mohamed Abdel Wahab Cleopatra', (t) => t.ch === 'UCfpEX-nBOXPu0h-hDnS8Kqg' && /^Cleopatra/.test(t.title), 3],
+    ['Mohamed Abdel Wahab Ya Msafer Wahdak', (t) => t.ch === 'UCfpEX-nBOXPu0h-hDnS8Kqg' && t.title === 'Ya Msafeir Wahdak', 3],
+    ['Farid Al Atrash Albi Wa Moftaho', (t) => t.ch === 'UCLlXnM1R9aMay2f-fg85EPw' && t.title === 'Albi We Moftahou', 3],
+    ['Farid Al Atrash Ya Albi Ya Magrouh', (t) => t.ch === 'UCLlXnM1R9aMay2f-fg85EPw' && /Ya Alb[yi] Ya Magrouh/.test(t.title), 3],
+    ['Abdel Halim Hafez El Toba', (t) => t.ch === 'UC2AunJnbADpAliYHtSOrnfw' && /^El Toba/.test(t.title), 3],
+  ],
+};
+async function arabRepertoire(name) {
+  const specs = ARAB_REP[name] || [];
+  const rs = await Promise.allSettled(specs.map(async ([q, m, n]) => (await searchCached(q)).filter(m).slice(0, n)));
+  const seen = new Set();
+  return rs.flatMap((r) => (r.status === 'fulfilled' ? r.value : [])).filter((t) => { if (seen.has(t.id)) return false; seen.add(t.id); return true; });
+}
 const topArtists = (st) => Object.entries((st && st.artists) || {}).sort((x, y) => y[1] - x[1]).map((e) => e[0]);
 function SearchTab({ c, A }) {
   const [q, setQ] = useState('');
@@ -556,7 +583,7 @@ function SearchTab({ c, A }) {
         <View style={{ paddingHorizontal: 16 }}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
             {GENRES.map(([n, qq], i) => (
-              <Pressable key={n} onPress={async () => { try { const r = await searchCached(qq); A.open({ title: n, items: r }); } catch (e) {} }}
+              <Pressable key={n} onPress={async () => { try { let r = ARAB_REP[n] ? await arabRepertoire(n) : []; if (!r.length) r = await searchCached(qq); A.open({ title: n, items: r }); } catch (e) {} }}
                 style={[{ width: '48.5%', height: 88, borderRadius: 12, marginBottom: 10, backgroundColor: GRADS[i % GRADS.length][0], justifyContent: 'center', padding: 14 }, Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, ' + GRADS[i % GRADS.length][0] + ', ' + GRADS[(i + 2) % GRADS.length][1] + ')' } : null]}>
                 <Text style={{ color: '#fff', fontWeight: '800', fontSize: 19, textAlign: 'right' }}>{n}</Text>
               </Pressable>
