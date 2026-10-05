@@ -1,5 +1,5 @@
 import { NativeModules } from 'react-native';
-import { WORKER } from './config';
+import { audioUrl } from './audioSrc';
 
 // Windows: native module "AviAudio" (C++/WinRT MediaPlayer + system media controls).
 const Native = NativeModules.AviAudio;
@@ -28,7 +28,8 @@ export async function load(track) {
   if (!Native) return false;
   endedSent = false;
   try {
-    const url = WORKER + '/audio/' + track.id;
+    const url = await audioUrl(track.id);
+    if (!url) return false;
     return !!(await Promise.race([
       Native.load(url, track.title || '', track.artist || ''),
       new Promise((r) => setTimeout(() => r(false), 15000)),
