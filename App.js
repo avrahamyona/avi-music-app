@@ -327,6 +327,25 @@ function Home({ c, A }) {
           </HScroll>
         </View>
       )}
+      {!!seeds.length && (
+        <View style={{ marginTop: 22 }}>
+          <Text style={[s.h2, { color: c.fg, marginHorizontal: 16, textAlign: 'right' }]}>שירים לפי מצב רוח</Text>
+          <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
+            {[['שמחה', 'שירים שמחים מקפיצים', ['#ffcb38', '#fd4964']], ['עצב', 'שירים עצובים שקטים', ['#6876a9', '#2d385f']], ['ריכוז', 'שירים רגועים לריכוז', ['#97b3a6', '#466c6a']]].map(([nm, qy, grad]) => (
+              <Hero key={nm} title={nm} kicker="מיקס מותאם להאזנה שלך" desc={seeds[0] || ''} grad={grad} img=""
+                onPress={async () => {
+                  toast('בונה את המיקס של ' + nm + '...');
+                  try {
+                    const rs = await Promise.allSettled(seeds.slice(0, 4).map((n) => searchCached(n + ' ' + qy)));
+                    const taste = seeds.map((n) => norm(n)); const seen = new Set(); const tracks = [];
+                    rs.forEach((r) => { if (r.status !== 'fulfilled') return; r.value.forEach((t) => { if (!t.id || seen.has(t.id)) return; if (!taste.includes(norm(String(t.artist).replace(/ - Topic$/i, '')))) return; seen.add(t.id); tracks.push(t); }); });
+                    if (tracks.length) A.play(tracks[0], tracks); else toast('אין כרגע שירים מתאימים ל' + nm);
+                  } catch (e) { toast('המיקס לא זמין כרגע'); }
+                }} />
+            ))}
+          </HScroll>
+        </View>
+      )}
       <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 8 }]}>אווירה ומצב רוח</Text>
       <MoodTiles c={c} A={A} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 18 }}>
