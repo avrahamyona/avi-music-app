@@ -630,21 +630,21 @@ function ArtistPage({ c, A, page }) {
         return (
           <View>
             <View style={{ height: H, backgroundColor: c.card, overflow: 'hidden', borderRadius: wideScreenX() ? 0 : 0 }}>
-              {cover ? <Image source={{ uri: cover.thumb }} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, width: '100%', height: '100%', opacity: 0.55 }} resizeMode="cover" /> : null}
-              <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: H * 0.7, backgroundColor: c.bg, opacity: 0.35 }} />
-              <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: H * 0.35, backgroundColor: c.bg, opacity: 0.6 }} />
-              <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: H * 0.12, backgroundColor: c.bg }} />
+              {cover ? <Image source={{ uri: cover.thumb }} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, width: '100%', height: '100%', opacity: 0.4 }} resizeMode="cover" /> : null}
+              {Platform.OS === 'web'
+                ? <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, top: 0, backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.15) 40%, ' + c.bg + ' 100%)' }} />
+                : <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: H * 0.5, backgroundColor: c.bg, opacity: 0.55 }} />}
               <View style={{ position: 'absolute', top: 12, left: 14, right: 14, flexDirection: 'row-reverse', justifyContent: 'space-between' }}>
                 <Pressable onPress={A.back} style={circ}><Text style={{ color: '#fff', fontSize: 18 }}>{'→'}</Text></Pressable>
                 <Pressable onPress={() => A.sheet(songs && songs[0])} style={circ}><Icon name="dots" size={20} color="#fff" /></Pressable>
               </View>
               <View style={{ position: 'absolute', left: 14, right: 14, bottom: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text numberOfLines={1} style={{ color: '#fff', fontSize: wideScreenX() ? 56 : 38, fontWeight: '800', flexShrink: 1, textAlign: 'right' }}>{page.title}</Text>
                 <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center' }}>
                   <Pressable onPress={() => A.toggleFollow('artists', fo)} style={circ}><Text style={{ color: on ? RED : '#fff', fontSize: 18 }}>{on ? '★' : '☆'}</Text></Pressable>
                   <Pressable disabled={!songs || !songs.length} onPress={() => A.play(songs[0], songs)} style={{ width: 62, height: 62, borderRadius: 31, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginHorizontal: 12 }}><Icon name="play" size={30} color="#000" /></Pressable>
                   <Pressable onPress={() => A.share && A.share(songs && songs[0])} style={circ}><Icon name="share" size={18} color="#fff" /></Pressable>
                 </View>
-                <Text numberOfLines={1} style={{ color: '#fff', fontSize: wideScreenX() ? 56 : 38, fontWeight: '800', flexShrink: 1, textAlign: 'right' }}>{page.title}</Text>
               </View>
             </View>
             {!!last && (
