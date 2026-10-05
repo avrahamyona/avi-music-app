@@ -375,7 +375,16 @@ function Radio({ c, A }) {
   return (
     <View>
       {!!mine.length && <Text style={[s.h2, { color: c.fg, marginTop: 6 }]}>תחנות לפי ההאזנה שלך</Text>}
-      {mine.slice(0, 3).map((n, i) => card(n, 'התחנה של ' + n, () => playQ(n + ' שירים'), i))}
+      {!!mine.length && (
+        <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
+          {mine.map((n) => { const tk = (A.history || []).concat(A.favs || []).find((t) => String(t.artist).replace(/ - Topic$/i, '') === n); return (
+            <Pressable key={n} onPress={() => playQ(n + ' שירים')} style={{ width: 150, marginLeft: 14, alignItems: 'center' }}>
+              <View style={{ width: 150, height: 150, borderRadius: 75, overflow: 'hidden', backgroundColor: c.card }}>{tk && tk.thumb ? <Image source={{ uri: tk.thumb }} style={{ width: 150, height: 150 }} /> : null}</View>
+              <Text numberOfLines={1} style={{ color: c.fg, fontWeight: '700', fontSize: 14, marginTop: 8 }}>{n}</Text>
+              <Text numberOfLines={1} style={{ color: c.sub, fontSize: 12 }}>{'התחנה של ' + n}</Text>
+            </Pressable>); })}
+        </HScroll>
+      )}
       {(!!(A.favs || []).length || !!(A.history || []).length) && <Text style={[s.h2, { color: c.fg, marginTop: 18 }]}>תחנה אישית</Text>}
       {(!!(A.favs || []).length || !!(A.history || []).length) && card('הרדיו שלך', 'שירים שאתה אוהב ועוד כמוהם', () => { const base = (A.favs && A.favs.length ? A.favs : A.history).slice(0, 12); const l = base.sort(() => Math.random() - 0.5); if (l.length) A.play(l[0], l); }, 3)}
       <Text style={[s.h2, { color: c.fg, marginTop: 18 }]}>תחנות</Text>
