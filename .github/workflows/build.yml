@@ -43,6 +43,17 @@ jobs:
           d.polygon([(420, 360), (420, 664), (690, 512)], fill=(250, 45, 72, 255))
           im.save('assets/icon.png')
           PY
+          python3 - <<'PY'
+          import urllib.request, io
+          from PIL import Image
+          try:
+              raw = urllib.request.urlopen('https://avrahamyona.github.io/nagan-tzaf/icon-512.png', timeout=30).read()
+              im = Image.open(io.BytesIO(raw)).convert('RGBA').resize((1024, 1024), Image.LANCZOS)
+              bg = Image.new('RGBA', (1024, 1024), (250, 45, 72, 255)); bg.alpha_composite(im)
+              bg.convert('RGB').save('assets/icon.png'); print('website icon applied')
+          except Exception as e:
+              print('icon fetch failed, keeping generated icon', e)
+          PY
       - name: Export web
         run: npx expo export -p web
       - name: Upload web for Pages
