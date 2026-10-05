@@ -60,6 +60,27 @@ jobs:
           import App from './App';
           AppRegistry.registerComponent('AviWin', () => App);
           JS
+      - name: Brand images (website icon)
+        shell: bash
+        continue-on-error: true
+        run: |
+          pip install pillow
+          python - <<'PY'
+          import urllib.request, io, glob, os
+          from PIL import Image
+          raw = urllib.request.urlopen('https://avrahamyona.github.io/nagan-tzaf/icon-512.png', timeout=30).read()
+          ic = Image.open(io.BytesIO(raw)).convert('RGBA')
+          red = (250, 45, 72, 255)
+          for p in glob.glob('AviWin/windows/**/Images/*.png', recursive=True):
+              w, h = Image.open(p).size
+              side = int(min(w, h) * (1.0 if w == h else 0.8))
+              tile = ic.resize((side, side), Image.LANCZOS)
+              bg = Image.new('RGBA', (w, h), red if w != h else (0, 0, 0, 0))
+              bg.alpha_composite(tile, ((w - side) // 2, (h - side) // 2))
+              bg.save(p)
+          ic.resize((256, 256), Image.LANCZOS).save('AviMusic.ico', sizes=[(256, 256), (64, 64), (48, 48), (32, 32), (16, 16)])
+          print('branded', len(glob.glob('AviWin/windows/**/Images/*.png', recursive=True)))
+          PY
       - name: Build (release, x64)
         shell: pwsh
         working-directory: AviWin
