@@ -21,15 +21,33 @@ function pick(j) {
   return (mp4.length ? mp4 : as).sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0].url;
 }
 
+const urlCache = new Map();
+// Warm the worker (and, on native, the resolved URL) for a song that is likely to play next.
+export function warm(id) {
+  if (!id) return;
+  try {
+    if (Platform.OS === 'web') { fetch(WORKER + '/audio/' + id, { mode: 'no-cors', headers: { Range: 'bytes=0-1' } }).catch(() => {}); return; }
+    audioUrl(id).catch(() => {});
+  } catch (e) {}
+}
+
 export async function audioUrl(id) {
+  const hit = urlCache.get(id);
+  if (hit && Date.now() - hit.t < 20 * 60 * 1000) return hit.u;
+  const u = await audioUrl0(id);
+  urlCache.set(id, { u, t: Date.now() });
+  return u;
+}
+
+async function audioUrl0(id) {
   // On web a fetch probe is blocked by CORS even when the audio element loads fine, so use the worker URL directly (same as the website).
   if (Platform.OS === 'web') return WORKER + '/audio/' + id;
-  for (let a = 0; a < 2; a++) {
+  for (let a = 0; a < 3; a++) {
     try {
-      const r = await timeout(fetch(WORKER + '/audio/' + id, { headers: { Range: 'bytes=0-0' } }), 12000);
+      const r = await timeout(fetch(WORKER + '/audio/' + id, { headers: { Range: 'bytes=0-0' } }), 8000);
       if (r.ok || r.status === 206) return WORKER + '/audio/' + id;
     } catch (e) {}
-    if (!a) await sleep(1500);
+    if (a < 2) await sleep(400);
   }
   return new Promise((resolve) => {
     let left = PIPED.length;
