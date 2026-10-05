@@ -296,8 +296,10 @@ function Home({ c, A }) {
                 img={byArtist(a) && byArtist(a).thumb} onPress={async () => { try { const ch = byArtist(a) && byArtist(a).ch; const r = (await searchCached(a)).filter((t) => norm(String(t.artist).replace(/ - Topic$/i, '')) === norm(a) && (!ch || !t.ch || t.ch === ch)); if (!r.length) { A.openArtist(a, ch); return; } const q = r.slice(); for (let i = q.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [q[i], q[j]] = [q[j], q[i]]; } A.play(q[0], q); } catch (e) { A.openArtist(a); } }} />
             ))}
           </HScroll>
+          {albums.length > alShown && <Pressable onPress={() => setAlShown((n) => n + 12)} style={{ alignSelf: 'center', marginTop: 12, paddingVertical: 9, paddingHorizontal: 20, borderRadius: 20, borderWidth: 1, borderColor: c.line }}><Text style={{ color: c.fg, fontWeight: '700' }}>עוד אלבומים ו-EP</Text></Pressable>}
         </View>
       )}
+      {amenu && <Modal transparent animationType="fade" onRequestClose={() => setAmenu(false)}><Pressable onPress={() => setAmenu(false)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end', alignItems: 'center' }}><Pressable style={{ width: '100%', maxWidth: 480, backgroundColor: c.card || c.bg, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 14 }}><Text style={{ color: c.fg, fontSize: 18, fontWeight: '800', textAlign: 'right', marginBottom: 6 }}>{page.title}</Text>{[['נגן את שירי האמן', () => { if (songs && songs.length) A.play(songs[0], songs); }], [(A.follows.artists || []).some((x) => (x.ch || x.title) === ((ch || page.ch || '') || page.title)) ? 'הסר אמן מהמועדפים' : 'הוסף אמן למועדפים', () => A.toggleFollow('artists', { title: page.title, ch: ch || page.ch || '', thumb: cover ? cover.thumb : '' })], ['שתף אמן', () => A.share && songs && songs[0] && A.share({ ...songs[0], title: page.title, artist: '' })]].map(([n, f]) => <Pressable key={n} onPress={() => { setAmenu(false); f(); }} style={{ paddingVertical: 13, borderTopWidth: 1, borderTopColor: c.line }}><Text style={{ color: c.fg, fontSize: 16, textAlign: 'right' }}>{n}</Text></Pressable>)}</Pressable></Pressable></Modal>}
       <View style={{ marginTop: 22 }}>
         <Text style={[s.h2, { color: c.fg, marginHorizontal: 16, textAlign: 'right' }]}>הושמעו לאחרונה</Text>
         {A.history.length ? (
@@ -820,6 +822,8 @@ function ArtistPage({ c, A, page }) {
   const [songs, setSongs] = useState(null);
   const [albums, setAlbums] = useState(null);
   const [similar, setSimilar] = useState(null);
+  const [amenu, setAmenu] = useState(false);
+  const [alShown, setAlShown] = useState(12);
   const [ch, setCh] = useState(page.ch);
   useEffect(() => {
     let live = true;
@@ -856,7 +860,7 @@ function ArtistPage({ c, A, page }) {
                 : <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: H * 0.5, backgroundColor: c.bg, opacity: 0.55 }} />}
               <View style={{ position: 'absolute', top: 12, left: 14, right: 14, flexDirection: 'row-reverse', justifyContent: 'space-between' }}>
                 <Pressable onPress={A.back} style={circ}><Text style={{ color: '#fff', fontSize: 18 }}>{'→'}</Text></Pressable>
-                <Pressable onPress={() => A.sheet(songs && songs[0])} style={circ}><Icon name="dots" size={20} color="#fff" /></Pressable>
+                <Pressable onPress={() => setAmenu(true)} style={circ}><Icon name="dots" size={20} color="#fff" /></Pressable>
               </View>
               <View style={{ position: 'absolute', left: 14, right: 14, bottom: 14, flexDirection: wideScreenX() ? 'row' : 'column', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Text numberOfLines={1} style={{ color: '#fff', fontSize: wideScreenX() ? 56 : 38, fontWeight: '800', flexShrink: 1, textAlign: wideScreenX() ? 'right' : 'center', marginBottom: wideScreenX() ? 0 : 10 }}>{page.title}</Text>
@@ -889,7 +893,7 @@ function ArtistPage({ c, A, page }) {
         <View style={{ marginTop: 22 }}>
           <Text style={[s.h2, { color: c.fg, marginBottom: 8 }]}>אלבומים וסינגלים</Text>
           <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
-            {albums.slice(0, 20).map((al) => (
+            {albums.slice(0, alShown).map((al) => (
               <Card key={al.plId} t={{ title: al.title, thumb: al.thumb, artist: al.releaseYear || '' }} c={c} onPress={() => A.openAlbum(al)} />
             ))}
           </HScroll>
@@ -1222,6 +1226,7 @@ function AppInner() {
   const [dur, setDur] = useState(0);
   const [full, setFull] = useState(false);
   const [destMenu, setDestMenu] = useState(false);
+  const [credits, setCredits] = useState(null);
   const [showLyr, setShowLyr] = useState(false);
   const [showQ, setShowQ] = useState(false);
   const [shuffle, setShuffle] = useState(false);
@@ -1583,6 +1588,8 @@ function AppInner() {
           [isFav(sheet) ? 'הסרה מהמועדפים' : 'הוספה למועדפים', () => { toggleFav(sheet); closeSheet(); }],
           ['התחל תחנה מהשיר', () => { const t = sheet; closeSheet(); station(t); }],
           ['מעבר לאמן', () => { const t = sheet; closeSheet(); setFull(false); openArtist(t.artist, t.ch); }],
+          ['הצגת מילים', () => { const t = sheet; closeSheet(); if (!cur || cur.id !== t.id) play(t, [t]); setFull(true); setShowLyr(true); }],
+          ['הצגת הקרדיטים', () => { const t = sheet; closeSheet(); setCredits(t); }],
           ['שיתוף', () => { share(sheet); closeSheet(); }],
         ].map(([n, f]) => (
           <Pressable key={n} onPress={f} style={{ paddingVertical: 12, borderTopWidth: 1, borderTopColor: c.line }}>
@@ -1659,6 +1666,7 @@ function AppInner() {
         </View>
       )}
       {sheetView}
+      {!!credits && <Modal transparent animationType="fade" onRequestClose={() => setCredits(null)}><Pressable onPress={() => setCredits(null)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' }}><Pressable style={{ width: '86%', maxWidth: 420, backgroundColor: c.card || c.bg, borderRadius: 16, padding: 18, borderWidth: 1, borderColor: c.line }}><Text style={{ color: c.fg, fontSize: 20, fontWeight: '800', textAlign: 'right' }}>{credits.title}</Text><Text style={{ color: c.fg, fontSize: 15, textAlign: 'right', marginTop: 10 }}>{'אמן / ערוץ המקור: ' + (credits.artist || 'לא ידוע')}</Text><Text style={{ color: c.sub, fontSize: 14, textAlign: 'right', marginTop: 8 }}>המקור אינו מספק קרדיטים מאומתים לכתיבה, לחן והפקה. לא נציג שמות בניחוש.</Text><Pressable onPress={() => setCredits(null)} style={{ alignSelf: 'flex-start', marginTop: 14, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, backgroundColor: RED }}><Text style={{ color: '#fff', fontWeight: '700' }}>סגור</Text></Pressable></Pressable></Pressable></Modal>}
       {!!toastMsg && <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: 96, alignItems: 'center' }}><View style={{ backgroundColor: 'rgba(40,40,44,0.96)', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 9, maxWidth: '86%' }}><Text style={{ color: '#fff', fontSize: 14, textAlign: 'center' }}>{toastMsg}</Text></View></View>}
     </View>
   );
