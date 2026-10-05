@@ -143,6 +143,7 @@ function PlayerArt({ uri, playing, size, wide }) {
   return <Animated.Image source={{ uri }} style={{ width: size, height: size, borderRadius: wide ? 7 : 10, marginTop: 10, backgroundColor: '#8883', transform: [{ scale: v }] }} />;
 }
 
+const ptOf = (e) => (e && e.nativeEvent && e.nativeEvent.pageX != null ? { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY } : null);
 let swipeQueue = null;
 function Row({ t, onPress, c, active, fav, onFav, onMore }) {
   const dx = useRef(new Animated.Value(0)).current;
@@ -162,7 +163,7 @@ function Row({ t, onPress, c, active, fav, onFav, onMore }) {
     <View>
       {reveal && <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: '#2a7de1', justifyContent: 'center', alignItems: 'center' }}><Text style={{ color: '#fff', fontWeight: '700' }}>הבא בתור</Text></View>}
       <Animated.View {...pan.panHandlers} style={{ transform: [{ translateX: dx }], backgroundColor: c.bg }}>
-    <Pressable onPress={onPress} onLongPress={onMore} style={({ pressed }) => [s.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#8884', opacity: pressed ? 0.6 : 1 }]}>
+    <Pressable onPress={onPress} onLongPress={(e) => onMore && onMore(ptOf(e))} style={({ pressed }) => [s.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#8884', opacity: pressed ? 0.6 : 1 }]}>
       {t.thumb ? <Image source={{ uri: t.thumb }} style={s.thumb} /> : <View style={s.thumb} />}
       <View style={{ flex: 1, marginHorizontal: 12 }}>
         <Text numberOfLines={1} style={{ color: active ? RED : c.fg, fontSize: 15, fontWeight: '500', textAlign: 'right' }}>{t.title}</Text>
@@ -170,7 +171,7 @@ function Row({ t, onPress, c, active, fav, onFav, onMore }) {
       </View>
       {!!t.dur && <Text style={{ color: c.sub, fontSize: 14, marginHorizontal: 6, writingDirection: 'ltr' }}>{fmt(t.dur)}</Text>}
       <Pressable onPress={onFav} style={{ padding: 8 }}><Icon name={fav ? 'heartfill' : 'heart'} size={18} color={fav ? RED : c.sub} /></Pressable>
-      {!!onMore && <Pressable onPress={onMore} style={{ padding: 8 }}><Icon name="dots" size={18} color={c.sub} /></Pressable>}
+      {!!onMore && <Pressable onPress={(e) => onMore(ptOf(e))} style={{ padding: 8 }}><Icon name="dots" size={18} color={c.sub} /></Pressable>}
     </Pressable>
       </Animated.View>
     </View>
@@ -197,7 +198,7 @@ function Shelf({ title, query, c, A, wide, rows, limit = 12, hideIfEmpty }) {
       {!items && <ActivityIndicator color={RED} style={{ margin: 14 }} />}
       {!!items && !items.length && <Pressable onPress={() => setTries((n) => n + 1)}><Text style={{ color: c.sub, textAlign: 'right', marginHorizontal: 16 }}>{'לא זמין כרגע. בדוק חיבור לאינטרנט · לחץ לנסות שוב'}</Text></Pressable>}
       {!!items && !!items.length && (rows ? items.slice(0, 8).map((t) => (
-        <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={() => A.sheet(t)} onPress={() => A.play(t, items)} />
+        <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={(p) => A.sheet(t, p)} onPress={() => A.play(t, items)} />
       )) : (
         <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
           {items.slice(0, limit).map((t) => <Card key={t.id} t={t} c={c} wide={wide} onPress={() => A.play(t, items)} />)}
@@ -340,7 +341,7 @@ function Library({ c, A }) {
         ))}
       </HScroll>
       {(sec === 'fav' || sec === 'hist') && !list.length && <Text style={{ color: c.sub, textAlign: 'center', marginTop: 40 }}>{sec === 'fav' ? 'עוד אין מועדפים. הקש על הלב ליד שיר.' : 'עוד לא הושמע כלום.'}</Text>}
-      {(sec === 'fav' || sec === 'hist') && list.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={() => A.sheet(t)} onPress={() => A.play(t, list)} />)}
+      {(sec === 'fav' || sec === 'hist') && list.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={(p) => A.sheet(t, p)} onPress={() => A.play(t, list)} />)}
       {sec === 'pls' && (
         <View>
           <TextInput value={url} onChangeText={setUrl} onSubmitEditing={importPl} placeholder="הדבק קישור לפלייליסט ציבורי של יוטיוב" placeholderTextColor={c.sub}
@@ -366,6 +367,24 @@ function Library({ c, A }) {
         <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
           <Text style={{ color: c.fg, fontSize: 18, fontWeight: '700', textAlign: 'right' }}>{'השמעות מאז ההתקנה: ' + (stats.total || 0)}</Text>
           <Text style={{ color: c.sub, textAlign: 'right', marginTop: 4 }}>{'החודש (' + month + '): ' + ((stats.months || {})[month] || 0)}</Text>
+          {(() => {
+            const sc = stats.sec || {}; const days = sc.days || {};
+            const today = new Date(); const key = (d) => d.toISOString().slice(0, 10);
+            const wk = new Date(today); wk.setDate(wk.getDate() - 6);
+            const sum = (f) => Object.entries(days).filter(([k]) => f(k)).reduce((a, [, v]) => a + v, 0);
+            const mins = (v) => Math.round(v / 60) + ' דק׳';
+            const allT = Object.values(sc.months || {}).reduce((a, v) => a + v, 0);
+            const rows = [['היום', sum((k) => k === key(today))], ['7 ימים אחרונים', sum((k) => k >= key(wk))], ['החודש', (sc.months || {})[month] || 0], ['מאז ההתקנה', allT]];
+            const songs = Object.values(sc.songs || {}).sort((a, b) => b.seconds - a.seconds).slice(0, 10);
+            return (
+              <View style={{ marginTop: 14 }}>
+                <Text style={[s.h2, { color: c.fg, marginHorizontal: 0 }]}>זמן האזנה בפועל</Text>
+                {rows.map(([n, v]) => (<View key={n} style={{ flexDirection: 'row', paddingVertical: 4 }}><Text style={{ color: c.fg, flex: 1, textAlign: 'right' }}>{n}</Text><Text style={{ color: c.sub }}>{mins(v)}</Text></View>))}
+                <Text style={[s.h2, { color: c.fg, marginHorizontal: 0, marginTop: 14 }]}>השירים המושמעים ביותר</Text>
+                {songs.map((x, i) => (<View key={x.id} style={{ flexDirection: 'row', paddingVertical: 4 }}><Text style={{ color: c.sub, width: 28, textAlign: 'right' }}>{i + 1}</Text><Text numberOfLines={1} style={{ color: c.fg, flex: 1, textAlign: 'right', marginHorizontal: 8 }}>{x.title}</Text><Text style={{ color: c.sub }}>{mins(x.seconds)}</Text></View>))}
+              </View>
+            );
+          })()}
           <Text style={[s.h2, { color: c.fg, marginHorizontal: 0, marginTop: 18 }]}>האמנים המושמעים ביותר</Text>
           {!top.length && <Text style={{ color: c.sub, textAlign: 'right', marginTop: 8 }}>עוד אין נתונים.</Text>}
           {top.map(([n, k], i) => (
@@ -461,7 +480,7 @@ function SearchTab({ c, A }) {
         </View>
       )}
       {(pill === 'all' || pill === 'songs') && (pill === 'all' && !!res.length ? <Text style={[s.h2, { color: c.fg, marginVertical: 8 }]}>שירים</Text> : null)}
-      {(pill === 'all' || pill === 'songs') && res.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={() => A.sheet(t)} onPress={() => A.play(t, res)} />)}
+      {(pill === 'all' || pill === 'songs') && res.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={(p) => A.sheet(t, p)} onPress={() => A.play(t, res)} />)}
     </View>
   );
 }
@@ -489,7 +508,7 @@ function ListPage({ c, A, page }) {
           </View>
         </View>
       )}
-      {items.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={() => A.sheet(t)} onPress={() => A.play(t, items)} />)}
+      {items.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={(p) => A.sheet(t, p)} onPress={() => A.play(t, items)} />)}
     </View>
   );
 }
@@ -540,7 +559,7 @@ function ArtistPage({ c, A, page }) {
       <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 6 }]}>שירים</Text>
       {!songs && <ActivityIndicator color={RED} style={{ margin: 14 }} />}
       {!!songs && !songs.length && <Text style={{ color: c.sub, textAlign: 'center' }}>לא נמצאו שירים</Text>}
-      {!!songs && songs.slice(0, 10).map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={() => A.sheet(t)} onPress={() => A.play(t, songs)} />)}
+      {!!songs && songs.slice(0, 10).map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={(p) => A.sheet(t, p)} onPress={() => A.play(t, songs)} />)}
       {!!albums && !!albums.length && (
         <View style={{ marginTop: 22 }}>
           <Text style={[s.h2, { color: c.fg, marginBottom: 8 }]}>אלבומים וסינגלים</Text>
@@ -594,7 +613,7 @@ function AlbumPage({ c, A, page }) {
       </View>
       {!tracks && <ActivityIndicator color={RED} style={{ margin: 14 }} />}
       {!!err && <Text style={{ color: c.sub, textAlign: 'center', margin: 14 }}>{err}</Text>}
-      {!!tracks && tracks.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={() => A.sheet(t)} onPress={() => A.play(t, tracks)} />)}
+      {!!tracks && tracks.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={(p) => A.sheet(t, p)} onPress={() => A.play(t, tracks)} />)}
     </View>
   );
 }
@@ -681,7 +700,7 @@ function Lyrics({ c, cur, pos, dur }) {
     </View>
   );
   const texts = state.lines ? state.lines.map((l) => l.text) : state.plain;
-  const modes = state.lines ? [['sync', 'מסונכרן'], ['karaoke', 'קריוקי'], ['plain', 'טקסט']] : [];
+  const modes = state.lines ? [['sync', 'מתואם'], ['karaoke', 'קריוקי'], ['plain', 'מילים רגילות']] : [];
   const m = state.lines ? mode : 'plain';
   return (
     <View style={{ width: '100%' }}>
@@ -694,6 +713,7 @@ function Lyrics({ c, cur, pos, dur }) {
           ))}
         </View>
       )}
+      <Text style={{ color: c.sub, fontSize: 12, textAlign: 'center', marginBottom: 6 }}>{(m === 'sync' ? 'מילים מתואמות' : m === 'karaoke' ? 'קריוקי' : 'גלילה עצמאית') + ' · LRCLIB'}</Text>
       {m === 'karaoke' ? (
         <View style={{ height: 300, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12 }}>
           <Text style={{ color: c.sub, fontSize: 18, textAlign: 'center', opacity: 0.6 }}>{texts[idx - 1] || ' '}</Text>
@@ -792,14 +812,14 @@ function MoodPage({ c, A, page }) {
       <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 6 }]}>שירים</Text>
       {!tracks && <ActivityIndicator color={RED} style={{ margin: 14 }} />}
       {!!tracks && !tracks.length && <Text style={{ color: c.sub, textAlign: 'center', margin: 14 }}>לא נמצאו שירים מאומתים כרגע. נסה שוב בעוד רגע.</Text>}
-      {!!tracks && tracks.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={() => A.sheet(t)} onPress={() => A.play(t, tracks)} />)}
+      {!!tracks && tracks.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={(p) => A.sheet(t, p)} onPress={() => A.play(t, tracks)} />)}
     </View>
   );
 }
 
 function AppInner() {
   const system = useColorScheme();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const wideScreen = width >= 900;
   const [override, setOverride] = useState(null);
   const dark = (override || system) === 'dark';
@@ -862,6 +882,8 @@ function AppInner() {
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState('off');
   const [sheet, setSheet] = useState(null);
+  const [anchor, setAnchor] = useState(null);
+  const swp = useRef(null);
   const [pick, setPick] = useState(null);
   const shuffleRef = useRef(false);
   const repeatRef = useRef('off');
@@ -900,6 +922,23 @@ function AppInner() {
     return () => { off(); o1(); o2(); };
   }, []);
 
+  // Listened time: counted only while audio is actually playing (like the website's monthly stats).
+  useEffect(() => {
+    const iv = setInterval(() => {
+      if (!playingRef.current || !curRef.current) return;
+      const t = curRef.current;
+      const d = new Date(); const mo = d.toISOString().slice(0, 7); const day = d.toISOString().slice(0, 10);
+      setStats((st) => {
+        const sec = { ...(st.sec || {}) };
+        sec.months = { ...(sec.months || {}), [mo]: ((sec.months || {})[mo] || 0) + 5 };
+        sec.days = { ...(sec.days || {}), [day]: ((sec.days || {})[day] || 0) + 5 };
+        const sg = { ...(sec.songs || {}) }; const o = sg[t.id] || { id: t.id, title: t.title, artist: t.artist, seconds: 0 };
+        sg[t.id] = { ...o, seconds: o.seconds + 5 }; sec.songs = sg;
+        const n = { ...st, sec }; store.set('stats', n); return n;
+      });
+    }, 5000);
+    return () => clearInterval(iv);
+  }, []);
   const posRef = useRef(0);
   const durRef = useRef(0);
   const playingRef = useRef(false);
@@ -1001,7 +1040,7 @@ function AppInner() {
   const back = () => setPages((x) => x.slice(0, -1));
   const openArtist = (name, ch) => open({ kind: 'artist', title: String(name).replace(/ - Topic$/i, ''), ch: ch || '' });
   const openAlbum = (al) => open({ kind: 'album', title: al.title, plId: al.plId, thumb: al.thumb, artist: al.artistName || '' });
-  const A = { sheet: (t) => setSheet(t), cur, play, isFav, toggleFav, open, back, openArtist, openAlbum, history, favs, playlists, stats, addPlaylist, removePlaylist, newPlaylist, renamePlaylist };
+  const A = { sheet: (t, p) => { setAnchor(p || null); setSheet(t); }, cur, play, isFav, toggleFav, open, back, openArtist, openAlbum, history, favs, playlists, stats, addPlaylist, removePlaylist, newPlaylist, renamePlaylist };
 
   const seek = (e) => {
     if (!dur) return;
@@ -1021,7 +1060,7 @@ function AppInner() {
   );
   const content = (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 110, alignItems: 'center' }}>
-      <View style={{ width: '100%', maxWidth: wideScreen ? 940 : undefined }}>
+      <View onTouchStart={(e) => { swp.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY }; }} onTouchEnd={(e) => { const a = swp.current; swp.current = null; if (!a || !page || wideScreen) return; const dx = e.nativeEvent.pageX - a.x, dy = Math.abs(e.nativeEvent.pageY - a.y); if (a.x >= width - 28 && -dx > 70 && -dx > dy * 2 || a.x <= 28 && dx > 70 && dx > dy * 2) back(); }} style={{ width: '100%', maxWidth: wideScreen ? 940 : undefined }}>
       {!!upd && (
         <Pressable onPress={() => Linking.openURL(upd.url)} style={{ backgroundColor: '#1db954', padding: 10, margin: 12, borderRadius: 10 }}>
           <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '700' }}>{'גרסה חדשה v' + upd.n + ' זמינה - הקש להורדה'}</Text>
@@ -1119,10 +1158,11 @@ function AppInner() {
   );
 
   const closeSheet = () => { setSheet(null); setPick(null); };
+  const popup = !!(sheet && wideScreen && anchor && !pick);
   const sheetView = sheet && (
-    <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end', alignItems: 'center' }}>
+    <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: popup ? 'transparent' : 'rgba(0,0,0,0.5)', justifyContent: popup ? 'flex-start' : 'flex-end', alignItems: 'center' }}>
       <Pressable onPress={closeSheet} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} />
-      <View style={{ width: '100%', maxWidth: 520, backgroundColor: c.bg, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 16, paddingBottom: 28 }}>
+      <View style={popup ? { position: 'absolute', left: Math.max(8, Math.min(width - 288, anchor.x - 20)), top: Math.max(8, Math.min(height - 380, anchor.y + 6)), width: 280, backgroundColor: c.card || c.bg, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: c.line, shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 18, elevation: 12 } : { width: '100%', maxWidth: 520, backgroundColor: c.bg, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 16, paddingBottom: 28 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
           {sheet.thumb ? <Image source={{ uri: sheet.thumb }} style={s.thumb} /> : <View style={s.thumb} />}
           <View style={{ flex: 1, marginHorizontal: 10 }}>
