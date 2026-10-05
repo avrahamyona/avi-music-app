@@ -544,7 +544,7 @@ function SearchTab({ c, A }) {
       <TextInput value={q} onChangeText={setQ} onSubmitEditing={() => go()} returnKeyType="search" placeholder="אמנים, שירים, מילים ועוד" placeholderTextColor={c.sub}
         style={[s.input, { backgroundColor: c.card, color: c.fg, textAlign: 'right' }]} />
       <View style={{ flexDirection: 'row', direction: 'ltr', backgroundColor: c.card, borderRadius: 10, padding: 3, marginHorizontal: 16, marginBottom: 10 }}>
-        {[['lib', 'הספריה'], ['all', 'Avi Music']].map(([k, n]) => (
+        {[['all', 'Avi Music'], ['lib', 'הספריה']].map(([k, n]) => (
           <Pressable key={k} onPress={() => { setScope(k); setDone(''); setRes([]); setErr(''); setLyr([]); }} style={{ flex: 1, paddingVertical: 7, borderRadius: 8, alignItems: 'center', backgroundColor: scope === k ? c.line : 'transparent' }}>
             <Text style={{ color: scope === k ? c.fg : c.sub, fontWeight: '700' }}>{n}</Text>
           </Pressable>
@@ -570,7 +570,7 @@ function SearchTab({ c, A }) {
           ))}
         </View>
       )}
-      {!done && scope === 'all' && !!recent.length && (
+      {false && !done && scope === 'all' && !!recent.length && (
         <View style={{ paddingHorizontal: 16 }}>
           <Text style={[s.h2, { color: c.fg, marginHorizontal: 0, marginBottom: 8 }]}>חיפושים אחרונים</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
