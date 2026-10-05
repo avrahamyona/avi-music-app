@@ -87,7 +87,7 @@ const TABS = [
   { k: 'home', t: 'בית', i: 'home' },
   { k: 'browse', t: 'חדש', i: 'browse' },
   { k: 'radio', t: 'רדיו', i: 'radio' },
-  { k: 'lib', t: 'ספרייה', i: 'library' },
+  { k: 'lib', t: 'ספריה', i: 'library' },
   { k: 'search', t: 'חיפוש', i: 'search' },
 ];
 
@@ -324,11 +324,11 @@ function Radio({ c, A }) {
   );
 }
 function Library({ c, A }) {
-  const [sec, setSec] = useState('fav');
+  const [sec, setSec] = useState(null);
   const [url, setUrl] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
-  const list = sec === 'fav' ? A.favs : A.history;
+  const list = (sec === 'fav' ? A.favs : A.history) || [];
   const importPl = async () => {
     const m = /[?&]list=([A-Za-z0-9_-]{10,100})/.exec(url) || /^([A-Za-z0-9_-]{10,100})$/.exec(url.trim());
     if (!m) { setMsg('הדבק קישור לפלייליסט ציבורי של יוטיוב (עם list=)'); return; }
@@ -346,13 +346,18 @@ function Library({ c, A }) {
   const top = Object.entries(stats.artists || {}).sort((x, y) => y[1] - x[1]).slice(0, 10);
   return (
     <View>
-      <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, marginTop: 8 }}>
-        {[['fav', 'מועדפים'], ['hist', 'הושמעו לאחרונה'], ['pls', 'פלייליסטים'], ['stats', 'סטטיסטיקה']].map(([k, n]) => (
-          <Pressable key={k} onPress={() => setSec(k)} style={{ paddingVertical: 6, paddingHorizontal: 14, borderRadius: 16, marginLeft: 8, backgroundColor: sec === k ? RED : c.card }}>
-            <Text style={{ color: sec === k ? '#fff' : c.fg, fontWeight: '600' }}>{n}</Text>
-          </Pressable>
-        ))}
-      </HScroll>
+      {!sec ? (
+        <View style={{ marginTop: 8 }}>
+          {[['fav', 'שירים אהובים (' + (A.favs || []).length + ')'], ['hist', 'הושמע לאחרונה (' + (A.history || []).length + ')'], ['stats', 'ההאזנה שלך · יום, שבוע, חודש והכול'], ['pls', 'ייבוא פלייליסט מיוטיוב'], ['pls', 'רשימות (' + (A.playlists || []).length + ')']].map(([k, n], i) => (
+            <Pressable key={n} onPress={() => setSec(k)} style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#8884' }}>
+              <Text style={{ color: c.sub, fontSize: 20 }}>‹</Text>
+              <Text style={{ flex: 1, color: c.fg, fontSize: 16, textAlign: 'right' }}>{n}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : (
+        <Pressable onPress={() => setSec(null)} style={{ paddingHorizontal: 16, paddingVertical: 10 }}><Text style={{ color: RED, fontSize: 16, textAlign: 'right' }}>{'ספריה ›'}</Text></Pressable>
+      )}
       {(sec === 'fav' || sec === 'hist') && !list.length && <Text style={{ color: c.sub, textAlign: 'center', marginTop: 40 }}>{sec === 'fav' ? 'עוד אין מועדפים. הקש על הלב ליד שיר.' : 'עוד לא הושמע כלום.'}</Text>}
       {(sec === 'fav' || sec === 'hist') && list.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={(p) => A.sheet(t, p)} onPress={() => A.play(t, list)} />)}
       {sec === 'pls' && (
