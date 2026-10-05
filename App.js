@@ -296,10 +296,8 @@ function Home({ c, A }) {
                 img={byArtist(a) && byArtist(a).thumb} onPress={async () => { try { const ch = byArtist(a) && byArtist(a).ch; const r = (await searchCached(a)).filter((t) => norm(String(t.artist).replace(/ - Topic$/i, '')) === norm(a) && (!ch || !t.ch || t.ch === ch)); if (!r.length) { A.openArtist(a, ch); return; } const q = r.slice(); for (let i = q.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [q[i], q[j]] = [q[j], q[i]]; } A.play(q[0], q); } catch (e) { A.openArtist(a); } }} />
             ))}
           </HScroll>
-          {albums.length > alShown && <Pressable onPress={() => setAlShown((n) => n + 12)} style={{ alignSelf: 'center', marginTop: 12, paddingVertical: 9, paddingHorizontal: 20, borderRadius: 20, borderWidth: 1, borderColor: c.line }}><Text style={{ color: c.fg, fontWeight: '700' }}>עוד אלבומים ו-EP</Text></Pressable>}
         </View>
       )}
-      {amenu && <Modal transparent animationType="fade" onRequestClose={() => setAmenu(false)}><Pressable onPress={() => setAmenu(false)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end', alignItems: 'center' }}><Pressable style={{ width: '100%', maxWidth: 480, backgroundColor: c.card || c.bg, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 14 }}><Text style={{ color: c.fg, fontSize: 18, fontWeight: '800', textAlign: 'right', marginBottom: 6 }}>{page.title}</Text>{[['נגן את שירי האמן', () => { if (songs && songs.length) A.play(songs[0], songs); }], [(A.follows.artists || []).some((x) => (x.ch || x.title) === ((ch || page.ch || '') || page.title)) ? 'הסר אמן מהמועדפים' : 'הוסף אמן למועדפים', () => A.toggleFollow('artists', { title: page.title, ch: ch || page.ch || '', thumb: cover ? cover.thumb : '' })], ['שתף אמן', () => A.share && songs && songs[0] && A.share({ ...songs[0], title: page.title, artist: '' })]].map(([n, f]) => <Pressable key={n} onPress={() => { setAmenu(false); f(); }} style={{ paddingVertical: 13, borderTopWidth: 1, borderTopColor: c.line }}><Text style={{ color: c.fg, fontSize: 16, textAlign: 'right' }}>{n}</Text></Pressable>)}</Pressable></Pressable></Modal>}
       <View style={{ marginTop: 22 }}>
         <Text style={[s.h2, { color: c.fg, marginHorizontal: 16, textAlign: 'right' }]}>הושמעו לאחרונה</Text>
         {A.history.length ? (
@@ -897,8 +895,10 @@ function ArtistPage({ c, A, page }) {
               <Card key={al.plId} t={{ title: al.title, thumb: al.thumb, artist: al.releaseYear || '' }} c={c} onPress={() => A.openAlbum(al)} />
             ))}
           </HScroll>
+          {albums.length > alShown && <Pressable onPress={() => setAlShown((n) => n + 12)} style={{ alignSelf: 'center', marginTop: 12, paddingVertical: 9, paddingHorizontal: 20, borderRadius: 20, borderWidth: 1, borderColor: c.line }}><Text style={{ color: c.fg, fontWeight: '700' }}>עוד אלבומים ו-EP</Text></Pressable>}
         </View>
       )}
+      {amenu && <Modal transparent animationType="fade" onRequestClose={() => setAmenu(false)}><Pressable onPress={() => setAmenu(false)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end', alignItems: 'center' }}><Pressable style={{ width: '100%', maxWidth: 480, backgroundColor: c.card || c.bg, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 14 }}><Text style={{ color: c.fg, fontSize: 18, fontWeight: '800', textAlign: 'right', marginBottom: 6 }}>{page.title}</Text>{[['נגן את שירי האמן', () => { if (songs && songs.length) A.play(songs[0], songs); }], [(A.follows.artists || []).some((x) => (x.ch || x.title) === ((ch || page.ch || '') || page.title)) ? 'הסר אמן מהמועדפים' : 'הוסף אמן למועדפים', () => A.toggleFollow('artists', { title: page.title, ch: ch || page.ch || '', thumb: cover ? cover.thumb : '' })], ['שתף אמן', () => A.share && songs && songs[0] && A.share({ ...songs[0], title: page.title, artist: '' })]].map(([n, f]) => <Pressable key={n} onPress={() => { setAmenu(false); f(); }} style={{ paddingVertical: 13, borderTopWidth: 1, borderTopColor: c.line }}><Text style={{ color: c.fg, fontSize: 16, textAlign: 'right' }}>{n}</Text></Pressable>)}</Pressable></Pressable></Modal>}
       {!!similar && !!similar.length && (
         <View style={{ marginTop: 22 }}>
           <Text style={[s.h2, { color: c.fg, marginBottom: 8 }]}>אמנים דומים</Text>
