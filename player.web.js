@@ -1,15 +1,12 @@
-import { Audio } from 'expo-av';
 import { audioUrl } from './audioSrc';
 
 const subs = new Set();
 const emit = (s) => subs.forEach((f) => f(s));
-let sound = null;
+let el = null;
 let vol = 1;
 let handlers = {};
 
-export async function init() {
-  try { await Audio.setAudioModeAsync({ staysActiveInBackground: true, playsInSilentModeIOS: true }); } catch (e) {}
-}
+export async function init() {}
 export function on(fn) { subs.add(fn); return () => subs.delete(fn); }
 
 export function setHandlers(h) {
@@ -17,8 +14,8 @@ export function setHandlers(h) {
   if (typeof navigator === 'undefined' || !navigator.mediaSession) return;
   const ms = navigator.mediaSession;
   try {
-    ms.setActionHandler('play', () => sound && sound.playAsync());
-    ms.setActionHandler('pause', () => sound && sound.pauseAsync());
+    ms.setActionHandler('play', () => el && el.play());
+    ms.setActionHandler('pause', () => el && el.pause());
     ms.setActionHandler('nexttrack', () => handlers.next && handlers.next());
     ms.setActionHandler('previoustrack', () => handlers.prev && handlers.prev());
   } catch (e) {}
@@ -36,33 +33,47 @@ function meta(track, playing) {
 }
 
 let lastTrack = null;
-function onStatus(st) {
-  if (!st.isLoaded) return;
-  emit({ playing: st.isPlaying, pos: (st.positionMillis || 0) / 1000, dur: (st.durationMillis || 0) / 1000 });
-  meta(lastTrack, st.isPlaying);
-  if (st.didJustFinish) emit({ ended: true });
-}
+const push = () => {
+  if (!el) return;
+  emit({ playing: !el.paused && !el.ended, pos: el.currentTime || 0, dur: isFinite(el.duration) ? el.duration : 0 });
+};
 
+// Plain HTMLAudioElement: starts as soon as the first bytes arrive, no waiting for expo-av to finish loading.
 export async function load(track) {
-  await init();
-  if (sound) { await sound.unloadAsync().catch(() => {}); sound = null; }
   lastTrack = track;
-  try {
-    const src = await audioUrl(track.id);
-    if (!src) return false;
-    const r = await Audio.Sound.createAsync({ uri: src }, { shouldPlay: true, volume: vol }, onStatus);
-    if (!r.status.isLoaded) { await r.sound.unloadAsync().catch(() => {}); return false; }
-    sound = r.sound;
-    meta(track, true);
-    return true;
-  } catch (e) { return false; }
+  if (el) { try { el.pause(); el.removeAttribute('src'); el.load(); } catch (e) {} el = null; }
+  let src;
+  try { src = await audioUrl(track.id); } catch (e) { return false; }
+  if (!src) return false;
+  const a = new Audio();
+  a.preload = 'auto';
+  a.volume = vol;
+  el = a;
+  a.addEventListener('timeupdate', push);
+  a.addEventListener('play', push);
+  a.addEventListener('pause', push);
+  a.addEventListener('durationchange', push);
+  a.addEventListener('ended', () => { push(); emit({ ended: true }); });
+  const ok = await new Promise((resolve) => {
+    let done = false;
+    const fin = (v) => { if (!done) { done = true; clearTimeout(tm); resolve(v); } };
+    const tm = setTimeout(() => fin(false), 9000);
+    a.addEventListener('playing', () => fin(true), { once: true });
+    a.addEventListener('error', () => fin(false), { once: true });
+    a.src = src;
+    const p = a.play();
+    if (p && p.catch) p.catch((e) => { if (e && e.name === 'NotAllowedError') fin(true); });
+  });
+  if (!ok) { if (el === a) { try { a.pause(); a.removeAttribute('src'); a.load(); } catch (e) {} el = null; } return false; }
+  meta(track, true);
+  return true;
 }
 
 export async function toggle() {
-  if (!sound) return;
-  const st = await sound.getStatusAsync();
-  if (st.isLoaded) { if (st.isPlaying) await sound.pauseAsync(); else await sound.playAsync(); }
+  if (!el) return;
+  if (el.paused) { try { await el.play(); } catch (e) {} } else el.pause();
+  meta(lastTrack, !el.paused);
 }
-export async function seek(sec) { if (sound) await sound.setPositionAsync(sec * 1000); }
+export async function seek(sec) { if (el) { try { el.currentTime = sec; } catch (e) {} } }
 
-export async function setVolume(v) { vol = Math.max(0, Math.min(1, v)); if (sound) await sound.setVolumeAsync(vol).catch(() => {}); }
+export async function setVolume(v) { vol = Math.max(0, Math.min(1, v)); if (el) el.volume = vol; }
