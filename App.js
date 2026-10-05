@@ -368,8 +368,10 @@ const STATIONS = [['להיטי ישראל', 'להיטים ישראלים'], ['מ
 function Radio({ c, A }) {
   const mine = topArtists(A.stats).slice(0, 6);
   const playQ = async (q, mix) => { try { const r = await searchCached(q); if (r.length) { const l = [r[0], ...r.slice(1).sort(() => Math.random() - 0.5)]; A.play(l[0], l); } } catch (e) {} };
-  const card = (title, sub, onPress, i) => (
-    <Pressable key={title + i} onPress={onPress} style={{ height: 96, borderRadius: 14, marginHorizontal: 16, marginTop: 12, backgroundColor: GRADS[i % GRADS.length][0], justifyContent: 'flex-end', padding: 14 }}>
+  const card = (title, sub, onPress, i, img) => (
+    <Pressable key={title + i} onPress={onPress} style={{ height: 96, borderRadius: 14, marginHorizontal: 16, marginTop: 12, backgroundColor: GRADS[i % GRADS.length][0], justifyContent: 'flex-end', padding: 14, overflow: 'hidden' }}>
+      {img ? <Image source={{ uri: img }} resizeMode="cover" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} /> : null}
+      {img ? <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)' }} /> : null}
       <Text style={{ color: '#fff', opacity: 0.85, fontSize: 12, fontWeight: '700', textAlign: 'right' }}>{sub}</Text>
       <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800', textAlign: 'right' }}>{title}</Text>
     </Pressable>
@@ -388,7 +390,7 @@ function Radio({ c, A }) {
         </HScroll>
       )}
       {(!!(A.favs || []).length || !!(A.history || []).length) && <Text style={[s.h2, { color: c.fg, marginTop: 18 }]}>תחנה אישית</Text>}
-      {(!!(A.favs || []).length || !!(A.history || []).length) && card('הרדיו שלך', 'שירים שאתה אוהב ועוד כמוהם', () => { const base = (A.favs && A.favs.length ? A.favs : A.history).slice(0, 12); const l = base.sort(() => Math.random() - 0.5); if (l.length) A.play(l[0], l); }, 3)}
+      {(!!(A.favs || []).length || !!(A.history || []).length) && card('הרדיו שלך', 'שירים שאתה אוהב ועוד כמוהם', () => { const base = (A.favs && A.favs.length ? A.favs : A.history).slice(0, 12); const l = base.sort(() => Math.random() - 0.5); if (l.length) A.play(l[0], l); }, 3, ((A.favs && A.favs.length ? A.favs : A.history)[0] || {}).thumb)}
       <Text style={[s.h2, { color: c.fg, marginTop: 18 }]}>תחנות</Text>
       {STATIONS.map(([n, q], i) => (
         <Pressable key={n} onPress={async () => { try { const r = await searchCached(q); if (r.length) A.play(r[0], r.slice().sort(() => Math.random() - 0.5).length ? [r[0], ...r.slice(1).sort(() => Math.random() - 0.5)] : r); } catch (e) {} }}
