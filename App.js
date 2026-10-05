@@ -1344,6 +1344,8 @@ function AppInner() {
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState('off');
   const [sheet, setSheet] = useState(null);
+  const [tabsMin, setTabsMin] = useState(false);
+  const lastY = useRef(0);
   const [anchor, setAnchor] = useState(null);
   const [follows, setFollows] = useState({ artists: [], albums: [] });
   const swp = useRef(null);
@@ -1610,7 +1612,7 @@ function AppInner() {
     </View>
   );
   const content = (
-    <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 110, alignItems: 'center' }}>
+    <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" scrollEventThrottle={32} onScroll={(e) => { const y = e.nativeEvent.contentOffset.y; const d = y - lastY.current; lastY.current = y; if (y > 80 && d > 6) setTabsMin(true); else if (y < 40 || d < -6) setTabsMin(false); }} contentContainerStyle={{ paddingBottom: 110, alignItems: 'center' }}>
       <View onTouchStart={(e) => { swp.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY }; }} onTouchEnd={(e) => { const a = swp.current; swp.current = null; if (!a || !page || wideScreen) return; const dx = e.nativeEvent.pageX - a.x, dy = Math.abs(e.nativeEvent.pageY - a.y); if (a.x >= width - 28 && -dx > 70 && -dx > dy * 2 || a.x <= 28 && dx > 70 && dx > dy * 2) back(); }} style={{ width: '100%', maxWidth: wideScreen ? 940 : undefined }}>
       {!!upd && (
         <Pressable onPress={() => Linking.openURL(upd.url)} style={{ backgroundColor: '#1db954', padding: 10, margin: 12, borderRadius: 10 }}>
@@ -1815,10 +1817,10 @@ function AppInner() {
           {mini}
           {!wideScreen && (
             <View style={{ paddingHorizontal: 16, paddingBottom: 12, paddingTop: 4, backgroundColor: c.bg }}>
-            <View style={{ flexDirection: 'row', height: 58, borderRadius: 32, backgroundColor: c.card, ...(Platform.OS === 'web' ? { backgroundColor: dark ? 'rgba(37,37,41,0.62)' : 'rgba(242,242,244,0.62)', backdropFilter: 'blur(28px) saturate(180%)', WebkitBackdropFilter: 'blur(28px) saturate(180%)' } : null), borderWidth: StyleSheet.hairlineWidth, borderColor: c.line, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 }}>
+            <View style={{ flexDirection: 'row', height: 58, borderRadius: 32, ...(tabsMin ? { width: 84, alignSelf: 'flex-start' } : {}), backgroundColor: c.card, ...(Platform.OS === 'web' ? { backgroundColor: dark ? 'rgba(37,37,41,0.62)' : 'rgba(242,242,244,0.62)', backdropFilter: 'blur(28px) saturate(180%)', WebkitBackdropFilter: 'blur(28px) saturate(180%)' } : null), borderWidth: StyleSheet.hairlineWidth, borderColor: c.line, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 }}>
               {BlurView ? <BlurView intensity={55} tint={dark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} /> : null}
-              {TABS.map((x) => (
-                <Pressable key={x.k} onPress={() => nav(x.k)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', margin: 5, borderRadius: 26, gap: 3, backgroundColor: tab === x.k ? c.card2 : 'transparent' }}>
+              {TABS.filter((x) => !tabsMin || x.k === tab).map((x) => (
+                <Pressable key={x.k} onPress={() => { if (tabsMin) setTabsMin(false); else nav(x.k); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', margin: 5, borderRadius: 26, gap: 3, backgroundColor: tab === x.k ? c.card2 : 'transparent' }}>
                   <Icon name={x.i} size={24} color={tab === x.k ? RED : c.sub} />
                   <Text style={{ color: tab === x.k ? RED : c.sub, fontSize: 10, fontWeight: '500' }}>{x.t}</Text>
                 </Pressable>
