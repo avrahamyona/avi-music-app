@@ -709,7 +709,7 @@ function ArtistPage({ c, A, page }) {
         const fo = { title: page.title, ch: ch || page.ch || '', thumb: cover ? cover.thumb : '' };
         const on = (A.follows.artists || []).some((x) => (x.ch || x.title) === (fo.ch || fo.title));
         const circ = { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' };
-        const H = wideScreenX() ? 400 : 300;
+        const H = wideScreenX() ? 400 : 420;
         const last = albums && albums[0];
         return (
           <View>
@@ -722,8 +722,8 @@ function ArtistPage({ c, A, page }) {
                 <Pressable onPress={A.back} style={circ}><Text style={{ color: '#fff', fontSize: 18 }}>{'→'}</Text></Pressable>
                 <Pressable onPress={() => A.sheet(songs && songs[0])} style={circ}><Icon name="dots" size={20} color="#fff" /></Pressable>
               </View>
-              <View style={{ position: 'absolute', left: 14, right: 14, bottom: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text numberOfLines={1} style={{ color: '#fff', fontSize: wideScreenX() ? 56 : 38, fontWeight: '800', flexShrink: 1, textAlign: 'right' }}>{page.title}</Text>
+              <View style={{ position: 'absolute', left: 14, right: 14, bottom: 14, flexDirection: wideScreenX() ? 'row' : 'column', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text numberOfLines={1} style={{ color: '#fff', fontSize: wideScreenX() ? 56 : 38, fontWeight: '800', flexShrink: 1, textAlign: wideScreenX() ? 'right' : 'center', marginBottom: wideScreenX() ? 0 : 10 }}>{page.title}</Text>
                 <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center' }}>
                   <Pressable onPress={() => A.toggleFollow('artists', fo)} style={circ}><Text style={{ color: on ? RED : '#fff', fontSize: 18 }}>{on ? '★' : '☆'}</Text></Pressable>
                   <Pressable disabled={!songs || !songs.length} onPress={() => A.play(songs[0], songs)} style={{ width: 62, height: 62, borderRadius: 31, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginHorizontal: 12 }}><Icon name="play" size={30} color="#000" /></Pressable>
