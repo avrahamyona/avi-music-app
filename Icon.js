@@ -1,6 +1,6 @@
 // Vector icons (web, Android, iPhone) drawn with react-native-svg. Windows uses Icon.windows.js.
 import React from 'react';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Circle, Defs, LinearGradient, Stop, Rect, G } from 'react-native-svg';
 
 const P = {
   ff: 'M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z',
@@ -36,6 +36,35 @@ export default function Icon({ name, size = 22, color = '#000' }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
       <Path d={P[name] || P.dots} fill={color} />
+    </Svg>
+  );
+}
+
+// Line illustrations for the mood shelf (own drawings), one per mood kind, over a two-colour gradient.
+const PAL = { sun: ['#ef6439', '#ffcb66'], cup: ['#583e72', '#d4a67f'], bolt: ['#573bec', '#e0ff61'], path: ['#21498d', '#8dd8f5'], book: ['#164f55', '#7ddab6'], wave: ['#235080', '#6dd5e3'], spark: ['#8034b0', '#fa78b7'], moon: ['#202952', '#9d9bfa'], rain: ['#243755', '#8eb4d8'], heart: ['#972548', '#ff8e9c'], candle: ['#614924', '#f8ce7c'], record: ['#75432e', '#ffc985'], hill: ['#2f6550', '#c5df8e'] };
+export const MOOD_KIND = { 'מזרחי דיכאון': 'rain', 'מזרחי שמח': 'sun', 'מזרחי טורקי': 'wave', 'פופ שמח': 'spark', 'אהבה': 'heart', 'שקט של ערב': 'moon', 'געגוע': 'rain', 'מסיבה': 'spark', 'נסיעה': 'path', 'שבת': 'candle', 'נוסטלגיה מזרחית': 'record', 'ארץ ישראל': 'hill' };
+const ART = {
+  sun: 'M50 30a16 16 0 1 0 0.1 0zM50 12v10M50 78v10M12 50h10M78 50h10M23 23l7 7M70 70l7 7M77 23l-7 7M30 70l-7 7',
+  moon: 'M62 22a30 30 0 1 0 16 46A24 24 0 0 1 62 22zM76 20v8M72 24h8',
+  rain: 'M30 52a14 14 0 0 1 4-27 18 18 0 0 1 34 4 12 12 0 0 1 0 23zM36 62l-4 10M50 62l-4 10M64 62l-4 10',
+  heart: 'M50 78C20 56 22 30 40 30c8 0 10 6 10 6s2-6 10-6c18 0 20 26-10 48z',
+  spark: 'M50 16l7 25 25 7-25 7-7 25-7-25-25-7 25-7zM78 20v10M73 25h10',
+  wave: 'M14 44q9-14 18 0t18 0 18 0 18 0M14 62q9-14 18 0t18 0 18 0 18 0',
+  path: 'M30 82L44 20M70 82L56 20M50 80V68M50 56V44M50 32V24',
+  candle: 'M40 46h20v34H40zM50 46V38M50 22c7 8 5 13 0 16-5-3-7-8 0-16z',
+  record: 'M50 22a28 28 0 1 0 0.1 0zM50 44a6 6 0 1 0 0.1 0zM30 50a20 20 0 0 1 8-16',
+  hill: 'M12 76q22-36 44-8 14-18 32 8zM72 28a9 9 0 1 0 0.1 0z',
+  book: 'M18 28h30v48H18zM48 28h34v48H48zM26 40h14M26 50h14',
+  cup: 'M32 40h30v22a15 15 0 0 1-30 0zM62 46h8a8 8 0 0 1 0 16h-8M34 82h28',
+  bolt: 'M58 14L32 54h16l-4 32 26-44H54z',
+};
+export function MoodArt({ kind }) {
+  const pal = PAL[kind] || PAL.spark;
+  return (
+    <Svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }}>
+      <Defs><LinearGradient id={'mg' + kind} x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor={pal[0]} /><Stop offset="1" stopColor={pal[1]} /></LinearGradient></Defs>
+      <Rect x="0" y="0" width="100" height="100" fill={'url(#mg' + kind + ')'} />
+      <G transform="translate(0,-14)"><Path d={ART[kind] || ART.spark} fill="none" stroke="#fff" strokeOpacity="0.85" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></G>
     </Svg>
   );
 }
