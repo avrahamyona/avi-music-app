@@ -1243,8 +1243,13 @@ function AppInner() {
   const barW = useRef(1);
   const volW = useRef(1);
   const [vol, setVol] = useState(1);
-  const setVolume = (e) => { const v = Math.max(0, Math.min(1, e.nativeEvent.locationX / volW.current)); setVol(v); player.setVolume && player.setVolume(v); };
+  const setVolume = (e) => { const v = Math.max(0, Math.min(1, e.nativeEvent.locationX / volW.current)); setVol(v); player.setVolume && player.setVolume(v); store.set('vol', v); };
   const queueRef = useRef([]);
+  const [autoNext, setAutoNext] = useState(true);
+  const autoNextRef = useRef(true); autoNextRef.current = autoNext;
+  const [lessSug, setLessSug] = useState({});
+  const lessRef = useRef({}); lessRef.current = lessSug;
+  const pendingRef = useRef(null);
   const autoBusy = useRef(false);
   const curRef = useRef(null);
   const playRef = useRef(null);
@@ -1257,6 +1262,10 @@ function AppInner() {
     store.get('playlists', []).then(setPlaylists);
     store.get('follows', { artists: [], albums: [] }).then((f) => setFollows({ artists: f.artists || [], albums: f.albums || [] }));
     store.get('stats', {}).then(setStats);
+    store.get('autoNext', true).then(setAutoNext);
+    store.get('lessSug', {}).then(setLessSug);
+    store.get('vol', 0.9).then((v) => { setVol(v); player.setVolume(v); });
+    store.get('resume', null).then((r) => { if (r && r.cur && r.cur.id) { setCur(r.cur); curRef.current = r.cur; const q = (r.queue && r.queue.length ? r.queue : [r.cur]); setQueue(q); queueRef.current = q; pendingRef.current = r.pos || 0; setPos(r.pos || 0); setStatus('הקש ניגון כדי להמשיך'); } });
     player.init().catch(() => {});
     const off = player.on((st) => {
       if (st.playing !== undefined) setPlaying(st.playing);
@@ -1334,12 +1343,12 @@ function AppInner() {
     let n = list[i + d];
     if (!n && repeatRef.current === 'all' && d > 0) n = list[0];
     if (n) { playRef.current(n); return; }
-    if (auto && d > 0 && !autoBusy.current) {
+    if (auto && d > 0 && autoNextRef.current && !autoBusy.current) {
       autoBusy.current = true;
       const an = String(cc.artist || '').replace(/ - Topic$/i, '');
       searchTracks(an + ' songs').then((r) => {
         const seen = new Set(queueRef.current.map((x) => x.id));
-        const more = clean(r).filter((x) => !seen.has(x.id)).slice(0, 15);
+        const more = clean(r).filter((x) => !seen.has(x.id) && !lessRef.current[x.id]).slice(0, 15);
         if (more.length) { const nq = [...queueRef.current, ...more]; setQueue(nq); queueRef.current = nq; playRef.current(more[0]); }
       }).catch(() => {}).finally(() => { autoBusy.current = false; });
     }
@@ -1364,6 +1373,18 @@ function AppInner() {
     if (g === gen.current) setStatus('השיר לא זמין כרגע במקורות הישירים. לא עברנו לשיר אחר.');
   };
   playRef.current = play;
+  const toggleP = () => {
+    if (pendingRef.current !== null && curRef.current) { const p = pendingRef.current; pendingRef.current = null; play(curRef.current).then(() => { if (p > 2) setTimeout(() => player.seek(p), 800); }); return; }
+    player.toggle();
+  };
+  const lessLike = (t) => { toast('נציג פחות הצעות מהשיר הזה'); setLessSug((m) => { const n = { ...m, [t.id]: true }; store.set('lessSug', n); return n; }); };
+  const removeFromQueue = (t) => { toast('הוסר מהתור'); setQueue((q) => { const n = q.filter((x) => x.id !== t.id); queueRef.current = n; return n; }); };
+  const toggleAutoNext = () => setAutoNext((v) => { store.set('autoNext', !v); toast(!v ? 'הפעלה אוטומטית פעילה' : 'הפעלה אוטומטית כבויה'); return !v; });
+  useEffect(() => {
+    if (!cur || pendingRef.current !== null) return;
+    const h = setTimeout(() => store.set('resume', { cur, queue: queue.slice(0, 50), pos: Math.floor(posRef.current || 0) }), 1500);
+    return () => clearTimeout(h);
+  }, [cur && cur.id, Math.floor(pos / 5)]);
   const isFav = (t) => favs.some((x) => x.id === t.id);
   const [toastMsg, setToastMsg] = useState('');
   const toastT = useRef(null);
@@ -1441,7 +1462,7 @@ function AppInner() {
   const ctl = (big) => (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', direction: 'ltr' }}>
       <Pressable {...hold(-1, () => go(-1))} style={s.skip}><Icon name="prev" size={big ? 34 : 22} color={c.fg} /></Pressable>
-      <Pressable onPress={() => player.toggle()} style={[s.play, big && { width: 64, height: 64, borderRadius: 32 }]}><Icon name={playing ? 'pause' : 'play'} size={big ? 34 : 24} color="#fff" /></Pressable>
+      <Pressable onPress={() => toggleP()} style={[s.play, big && { width: 64, height: 64, borderRadius: 32 }]}><Icon name={playing ? 'pause' : 'play'} size={big ? 34 : 24} color="#fff" /></Pressable>
       <Pressable {...hold(1, () => go(1))} style={s.skip}><Icon name="next" size={big ? 34 : 22} color={c.fg} /></Pressable>
     </View>
   );
@@ -1470,7 +1491,7 @@ function AppInner() {
         <View style={{ flexDirection: 'row', alignItems: 'center', direction: 'ltr' }}>
           <Pressable onPress={() => setSheet(cur)} style={{ width: 32, height: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name="dots" size={22} color={c.fg} /></Pressable>
           <Pressable {...hold(1, () => go(1))} style={{ width: 40, height: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name="next" size={22} color={c.fg} /></Pressable>
-          <Pressable onPress={() => player.toggle()} style={{ width: 40, height: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name={playing ? 'pause' : 'play'} size={24} color={c.fg} /></Pressable>
+          <Pressable onPress={() => toggleP()} style={{ width: 40, height: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name={playing ? 'pause' : 'play'} size={24} color={c.fg} /></Pressable>
         </View>
       </Pressable>
     </View>
@@ -1502,7 +1523,7 @@ function AppInner() {
         <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', justifyContent: wideScreen ? 'space-between' : 'space-evenly', width: '100%', maxWidth: 434, marginTop: wideScreen ? 24 : 30 }}>
           {wideScreen ? <Pressable onPress={() => setRepeat((r) => (r === 'off' ? 'all' : r === 'all' ? 'one' : 'off'))} style={{ width: 35, height: 35, alignItems: 'center', justifyContent: 'center' }}><View><Icon name="repeat" size={20} color={repeat === 'off' ? c.fg : RED} />{repeat === 'one' && <Text style={{ position: 'absolute', right: -2, top: -2, color: RED, fontSize: 9, fontWeight: '800' }}>1</Text>}</View></Pressable> : null}
           <Pressable {...hold(-1, () => go(-1))} style={{ width: 58, height: 64, alignItems: 'center', justifyContent: 'center' }}><Icon name="rw" size={36} color={c.fg} /></Pressable>
-          <Pressable onPress={() => player.toggle()} style={{ width: 68, height: 68, alignItems: 'center', justifyContent: 'center' }}><Icon name={playing ? 'pause' : 'play'} size={48} color={c.fg} /></Pressable>
+          <Pressable onPress={() => toggleP()} style={{ width: 68, height: 68, alignItems: 'center', justifyContent: 'center' }}><Icon name={playing ? 'pause' : 'play'} size={48} color={c.fg} /></Pressable>
           <Pressable {...hold(1, () => go(1))} style={{ width: 58, height: 64, alignItems: 'center', justifyContent: 'center' }}><Icon name="ff" size={36} color={c.fg} /></Pressable>
           {wideScreen ? <Pressable onPress={() => setShuffle((v) => !v)} style={{ width: 35, height: 35, alignItems: 'center', justifyContent: 'center' }}><Icon name="shuffle" size={20} color={shuffle ? RED : c.fg} /></Pressable> : null}
         </View>
@@ -1526,13 +1547,14 @@ function AppInner() {
         {showLyr && <View style={{ width: '100%', maxWidth: 520 }}><Lyrics c={c} cur={cur} pos={pos} dur={dur} />
           {wideScreen && <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, marginTop: 6, borderTopWidth: 1, borderTopColor: c.line }}>
             <Pressable onPress={() => go(-1)} style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginHorizontal: 9 }}><Icon name="prev" size={19} color={c.fg} /></Pressable>
-            <Pressable onPress={() => player.toggle()} style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginHorizontal: 9 }}><Icon name={playing ? 'pause' : 'play'} size={19} color={c.fg} /></Pressable>
+            <Pressable onPress={() => toggleP()} style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginHorizontal: 9 }}><Icon name={playing ? 'pause' : 'play'} size={19} color={c.fg} /></Pressable>
             <Pressable onPress={() => go(1)} style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginHorizontal: 9 }}><Icon name="next" size={19} color={c.fg} /></Pressable>
           </View>}
         </View>}
-        {showQ && <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginTop: 12 }}><Pressable onPress={() => setShuffle((v) => !v)} style={{ padding: 8 }}><Icon name="shuffle" size={20} color={shuffle ? RED : c.fg} /></Pressable><Pressable onPress={() => setRepeat((r) => (r === 'off' ? 'all' : r === 'all' ? 'one' : 'off'))} style={{ padding: 8 }}><Icon name="repeat" size={20} color={repeat === 'off' ? c.fg : RED} /></Pressable><Text style={[s.h2, { color: c.fg, flex: 1, textAlign: 'right' }]}>הבא בתור</Text></View>}
+        {showQ && <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginTop: 12 }}><Pressable onPress={() => setShuffle((v) => !v)} style={{ padding: 8 }}><Icon name="shuffle" size={20} color={shuffle ? RED : c.fg} /></Pressable><Pressable onPress={() => setRepeat((r) => (r === 'off' ? 'all' : r === 'all' ? 'one' : 'off'))} style={{ padding: 8 }}><Icon name="repeat" size={20} color={repeat === 'off' ? c.fg : RED} /></Pressable><Pressable onPress={toggleAutoNext} style={{ padding: 8 }}><Text style={{ color: autoNext ? RED : c.fg, fontSize: 20, fontWeight: '800' }}>∞</Text></Pressable><Text style={[s.h2, { color: c.fg, flex: 1, textAlign: 'right' }]}>הבא בתור</Text></View>}
+        {showQ && <Text style={{ color: c.sub, fontSize: 12, textAlign: 'right', marginTop: 4, alignSelf: 'stretch' }}>{autoNext ? '∞ הפעלה אינסופית · שמירת עד 10 שירים בהמשך התור' : '∞ הפעלה אינסופית כבויה'}</Text>}
         {showQ && <View style={{ width: '100%', backgroundColor: 'transparent' }}>
-          {queue.slice(Math.max(0, queue.findIndex((t) => t.id === cur.id) + 1), 40).map((t) => <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center' }}><View style={{ flex: 1 }}><Row t={t} c={c} active={false} fav={isFav(t)} onFav={() => toggleFav(t)} onMore={() => setSheet(t)} onPress={() => play(t)} /></View><View><Pressable onPress={() => moveQ(t.id, -1)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>▲</Text></Pressable><Pressable onPress={() => moveQ(t.id, 1)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>▼</Text></Pressable></View></View>)}
+          {queue.slice(Math.max(0, queue.findIndex((t) => t.id === cur.id) + 1), 40).map((t) => <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center' }}><View style={{ flex: 1 }}><Row t={t} c={c} active={false} fav={isFav(t)} onFav={() => toggleFav(t)} onMore={() => setSheet(t)} onPress={() => play(t)} /></View><View><Pressable onPress={() => removeFromQueue(t)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>✕</Text></Pressable><Pressable onPress={() => moveQ(t.id, -1)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>▲</Text></Pressable><Pressable onPress={() => moveQ(t.id, 1)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>▼</Text></Pressable></View></View>)}
         </View>}
       </ScrollView>
       </View>
@@ -1554,6 +1576,8 @@ function AppInner() {
         </View>
         {!pick ? [
           ['ניגון הבא', () => { queueNext(sheet); closeSheet(); }],
+          ...(queue.some((x) => x.id === sheet.id) ? [['הסר מהתור', () => { removeFromQueue(sheet); closeSheet(); }]] : []),
+          ['פחות הצעות מהשיר הזה', () => { lessLike(sheet); closeSheet(); }],
           ['הוספה לסוף התור', () => { queueLast(sheet); closeSheet(); }],
           ['הוספה לפלייליסט', () => setPick({ name: '' })],
           [isFav(sheet) ? 'הסרה מהמועדפים' : 'הוספה למועדפים', () => { toggleFav(sheet); closeSheet(); }],
