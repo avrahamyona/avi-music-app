@@ -100,3 +100,4 @@ export async function toggle() {
   if (st.state === State.Playing) await TrackPlayer.pause(); else await TrackPlayer.play();
 }
 export async function seek(sec) { await TrackPlayer.seekTo(sec); }
+export async function setVolume(v) { try { await TrackPlayer.setVolume(Math.max(0, Math.min(1, v))); } catch (e) {} }
