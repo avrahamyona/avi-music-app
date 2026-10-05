@@ -81,6 +81,48 @@ async function searchCached(q) {
   if (r.length) cache.set(q, r);
   return r;
 }
+const lyrWords = (x) => norm(x).split(/\s+/).filter((w) => w.length > 1);
+function lyrScore(line, q) {
+  const nq = norm(q), nl = norm(line);
+  if (!nq || !nl) return 0;
+  if (nl.includes(nq)) return 100;
+  const w = lyrWords(q); if (w.length < 2) return 0;
+  const lw = lyrWords(line); const hits = w.filter((x) => lw.includes(x)).length;
+  return hits >= 2 && hits / w.length >= 0.8 ? 60 : 0;
+}
+async function searchLyricsText(q) {
+  if (!norm(q)) return [];
+  const out = [], seen = new Set();
+  const push = (title, artist, line) => { const sc = lyrScore(line, q); const k = norm(title); if (sc && title && artist && !seen.has(k)) { seen.add(k); out.push({ title, artist, line, sc }); } };
+  try { const j = await wjson('/lyrics?q=' + encodeURIComponent(q)); (j.matches || []).forEach((x) => push(x.title, x.artist, x.line)); } catch (e) {}
+  if (out.length < 5) {
+    try {
+      const r = await fetch('https://lrclib.net/api/search?q=' + encodeURIComponent(q));
+      if (r.ok) (await r.json()).slice(0, 12).forEach((it) => {
+        if (/\(paused\)/i.test(it.trackName || '')) return;
+        const lines = String(it.plainLyrics || '').split('\n').map((x) => x.trim()).filter(Boolean);
+        const best = lines.map((l) => ({ l, sc: lyrScore(l, q) })).sort((a, b) => b.sc - a.sc)[0];
+        if (best && best.sc) push(it.trackName, it.artistName, best.l);
+      });
+    } catch (e) {}
+  }
+  return out.sort((a, b) => b.sc - a.sc).slice(0, 5);
+}
+function LyricSnip({ line, q, c }) {
+  const words = String(line || '').split(/\s+/);
+  const qws = String(q || '').toLowerCase().split(/\s+/).filter((w) => w.length > 1);
+  const isQ = (w) => qws.some((x) => w.toLowerCase().includes(x));
+  let first = -1, last = -1;
+  words.forEach((w, i) => { if (isQ(w)) { if (first < 0) first = i; last = i; } });
+  const a = first < 0 ? 0 : Math.max(0, first - 2), b = first < 0 ? words.length : Math.min(words.length, last + 4);
+  return (
+    <Text numberOfLines={2} style={{ color: c.sub, fontSize: 13, textAlign: 'right', marginTop: 2 }}>
+      {'מילים: \u201C' + (a > 0 ? '\u2026 ' : '')}
+      {words.slice(a, b).map((w, i) => <Text key={i} style={isQ(w) ? { fontWeight: '800', color: c.fg } : null}>{(i ? ' ' : '') + w}</Text>)}
+      {(b < words.length ? ' \u2026' : '') + '\u201D'}
+    </Text>
+  );
+}
 const GRADS = [['#fa2d48', '#ff7a45'], ['#5e5ce6', '#9a6bff'], ['#0a84ff', '#30d5c8'], ['#ff9f0a', '#ff453a'], ['#30b0c7', '#34c759']];
 
 const TABS = [
@@ -460,11 +502,19 @@ function SearchTab({ c, A }) {
   const [recent, setRecent] = useState([]);
   const [albums, setAlbums] = useState(null);
   const [done, setDone] = useState('');
+  const [scope, setScope] = useState('all');
+  const [lyr, setLyr] = useState([]);
   useEffect(() => { store.get('recent', []).then(setRecent); }, []);
   const go = async (text) => {
     const x = String(text !== undefined ? text : q).trim(); if (!x) return;
-    setQ(x); setBusy(true); setErr(''); setAlbums(null); setDone(x);
+    setQ(x); setBusy(true); setErr(''); setAlbums(null); setLyr([]); setDone(x);
     setRecent((r) => { const n = [x, ...r.filter((y) => y !== x)].slice(0, 8); store.set('recent', n); return n; });
+    if (scope === 'lib') {
+      const nx = norm(x); const seenL = new Set();
+      const l = [...(A.history || []), ...(A.favs || [])].filter((t) => t && t.id && (norm(t.title).includes(nx) || norm(t.artist).includes(nx)) && !seenL.has(t.id) && seenL.add(t.id));
+      setRes(l); if (!l.length) setErr('לא נמצאו שירים בספריה'); setBusy(false); return;
+    }
+    searchLyricsText(x).then((m) => setLyr(m)).catch(() => {});
     try { const r = await searchCached(x); setRes(r); if (!r.length) setErr('לא נמצאו תוצאות'); } catch (e) { setErr('החיפוש נכשל, נסה שוב'); }
     setBusy(false);
   };
@@ -481,7 +531,14 @@ function SearchTab({ c, A }) {
     <View>
       <TextInput value={q} onChangeText={setQ} onSubmitEditing={() => go()} returnKeyType="search" placeholder="חפש שירים, אמנים..." placeholderTextColor={c.sub}
         style={[s.input, { backgroundColor: c.card, color: c.fg, textAlign: 'right' }]} />
-      {!done && (
+      <View style={{ flexDirection: 'row', direction: 'ltr', backgroundColor: c.card, borderRadius: 10, padding: 3, marginHorizontal: 16, marginBottom: 10 }}>
+        {[['lib', 'הספריה'], ['all', 'Avi Music']].map(([k, n]) => (
+          <Pressable key={k} onPress={() => { setScope(k); setDone(''); setRes([]); setErr(''); setLyr([]); }} style={{ flex: 1, paddingVertical: 7, borderRadius: 8, alignItems: 'center', backgroundColor: scope === k ? c.line : 'transparent' }}>
+            <Text style={{ color: scope === k ? c.fg : c.sub, fontWeight: '700' }}>{n}</Text>
+          </Pressable>
+        ))}
+      </View>
+      {!done && scope === 'all' && (
         <View style={{ paddingHorizontal: 16 }}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
             {GENRES.map(([n, qq], i) => (
@@ -501,7 +558,7 @@ function SearchTab({ c, A }) {
           ))}
         </View>
       )}
-      {!done && !!recent.length && (
+      {!done && scope === 'all' && !!recent.length && (
         <View style={{ paddingHorizontal: 16 }}>
           <Text style={[s.h2, { color: c.fg, marginHorizontal: 0, marginBottom: 8 }]}>חיפושים אחרונים</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
@@ -513,7 +570,7 @@ function SearchTab({ c, A }) {
           </View>
         </View>
       )}
-      {!!done && (
+      {!!done && scope === 'all' && (
         <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginBottom: 6 }}>
           {[['all', 'תוצאות מובילות'], ['songs', 'שירים'], ['artists', 'אמנים'], ['albums', 'אלבומים']].map(([k, n]) => (
             <Pressable key={k} onPress={() => setPill(k)} style={{ paddingVertical: 5, paddingHorizontal: 14, borderRadius: 16, marginLeft: 8, backgroundColor: pill === k ? RED : c.card }}>
@@ -553,6 +610,21 @@ function SearchTab({ c, A }) {
       )}
       {(pill === 'all' || pill === 'songs') && (pill === 'all' && !!res.length ? <Text style={[s.h2, { color: c.fg, marginVertical: 8 }]}>שירים</Text> : null)}
       {(pill === 'all' || pill === 'songs') && res.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={(p) => A.sheet(t, p)} onPress={() => A.play(t, res)} />)}
+      {scope === 'all' && (pill === 'all' || pill === 'songs') && !!lyr.length && (
+        <View>
+          <Text style={[s.h2, { color: c.fg, marginVertical: 8 }]}>נמצא במילים</Text>
+          {lyr.map((x) => (
+            <Pressable key={x.title + x.artist} onPress={async () => { try { const r = await searchCached(x.artist + ' ' + x.title); if (r.length) A.play(r[0], r); } catch (e) {} }} style={s.row}>
+              <View style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center' }}><Icon name="lyrics" size={20} color={c.sub} /></View>
+              <View style={{ flex: 1, marginHorizontal: 12 }}>
+                <Text numberOfLines={1} style={{ color: c.fg, fontSize: 15, fontWeight: '500', textAlign: 'right' }}>{x.title}</Text>
+                <Text numberOfLines={1} style={{ color: c.sub, fontSize: 13, textAlign: 'right' }}>{x.artist}</Text>
+                <LyricSnip line={x.line} q={done} c={c} />
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
