@@ -314,11 +314,25 @@ function Home({ c, A }) {
           </HScroll>
         </View>
       )}
+      {!!seeds.length && (
+        <View style={{ marginTop: 22 }}>
+          <Text style={[s.h2, { color: c.fg, marginHorizontal: 16, textAlign: 'right' }]}>תחנות מומלצות לפי האמנים שלך</Text>
+          <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
+            {seeds.slice(0, 6).map((n) => { const tk = byArtist(n); return (
+              <Pressable key={n} onPress={async () => { try { const r = await searchCached(n + ' שירים'); if (r.length) A.play(r[0], [r[0], ...r.slice(1).sort(() => Math.random() - 0.5)]); } catch (e) {} }} style={{ width: 110, marginLeft: 12, alignItems: 'center' }}>
+                <View style={{ width: 100, height: 100, borderRadius: 50, overflow: 'hidden', backgroundColor: c.card }}>{tk && tk.thumb ? <Image source={{ uri: tk.thumb }} style={{ width: 100, height: 100 }} /> : null}</View>
+                <Text numberOfLines={1} style={{ color: c.fg, fontWeight: '700', fontSize: 14, marginTop: 8 }}>{n}</Text>
+                <Text numberOfLines={1} style={{ color: c.sub, fontSize: 12 }}>{'התחנה של ' + n}</Text>
+              </Pressable>); })}
+          </HScroll>
+        </View>
+      )}
       <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 8 }]}>אווירה ומצב רוח</Text>
       <MoodTiles c={c} A={A} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 18 }}>
         {ACTIVITIES.map((t) => <Topic key={t[0]} t={t} c={c} A={A} />)}
       </View>
+      <Shelf title="סינגלים חדשים" query="סינגל חדש ישראל 2026" c={c} A={A} />
     </View>
   );
 }
@@ -439,6 +453,10 @@ function Library({ c, A }) {
               {!!ic && <View style={{ marginLeft: 12 }}><Icon name={ic} size={24} color={RED} /></View>}
             </Pressable>
           );})}
+          <Pressable onPress={() => setSec('fav')} style={{ paddingVertical: 12, paddingHorizontal: 16 }}>
+            <Text style={{ color: c.fg, fontSize: 16, textAlign: 'right' }}>{'מועדפים ❤️'}</Text>
+            <Text style={{ color: c.sub, fontSize: 13, textAlign: 'right' }}>{(A.favs || []).length + ' שירים'}</Text>
+          </Pressable>
         </View>
       ) : (
         <Pressable onPress={() => setSec(null)} style={{ paddingHorizontal: 16, paddingVertical: 10 }}><Text style={{ color: RED, fontSize: 16, textAlign: 'right' }}>{'ספריה ›'}</Text></Pressable>
