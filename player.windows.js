@@ -14,12 +14,15 @@ export async function init() {
     try {
       const p = await Native.getProgress();
       emit({ playing: !!p.playing, pos: p.pos || 0, dur: p.dur || 0 });
+      if (p.cmd === 1 && handlers.next) handlers.next();
+      if (p.cmd === 2 && handlers.prev) handlers.prev();
       if (p.ended && !endedSent) { endedSent = true; emit({ ended: true }); }
     } catch (e) {}
   }, 500);
 }
 export function on(fn) { subs.add(fn); return () => subs.delete(fn); }
-export function setHandlers() {}
+let handlers = {};
+export function setHandlers(h) { handlers = h || {}; }
 export async function load(track) {
   await init();
   if (!Native) return false;
