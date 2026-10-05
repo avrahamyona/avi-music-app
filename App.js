@@ -549,6 +549,7 @@ function Library({ c, A }) {
     </View>
   );
 }
+const GENRE_DESC = { 'מוזיקה עברית': 'זמר עברי וקלאסיקות ישראליות', 'מזרחית': 'נשמה, קלאסיקות וקצב', 'מוזיקה פופ - ים תיכונית': 'פופ ישראלי בקצב', 'מוזיקה יהודית': 'פיוט ושירים של נשמה', 'הופעות': 'ביצועים חיים של אמנים ישראליים', 'מוזיקה חדשה': 'שירים מתוך ההוצאות החדשות של האמנים' };
 const GENRES = [['מוזיקה עברית', 'מוזיקה עברית להיטים'], ['מזרחית', 'מזרחית להיטים'], ['מוזיקה פופ - ים תיכונית', 'פופ ים תיכוני'], ['מוזיקה יהודית', 'מוזיקה יהודית'], ['הופעות', 'הופעה חיה'], ['מוזיקה ערבית אמיתית', 'מוזיקה ערבית'], ['מוזיקה ערבית ישראלית', 'ערבית ישראלית'], ['מוזיקה חדשה', 'שירים חדשים']];
 const ARAB_REP = {
   'מוזיקה ערבית ישראלית': [
@@ -630,7 +631,7 @@ function SearchTab({ c, A }) {
         <View style={{ paddingHorizontal: 16 }}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
             {GENRES.map(([n, qq], i) => (
-              <Pressable key={n} onPress={async () => { try { let r = ARAB_REP[n] ? await arabRepertoire(n) : []; if (!r.length) r = await searchCached(qq); let k = 0; const sfx = ['', ' הכי טוב', ' מומלץ', ' קלאסיקות', ' שירים חדשים', ' מחרוזת', ' פופולרי', ' להיטי כל הזמנים']; A.open({ title: n, items: r, more: ARAB_REP[n] ? null : async () => { const out = []; while (k < sfx.length && out.length < 30) { const x = await searchCached(qq + sfx[k++]); out.push(...x); } return { tracks: out, done: k >= sfx.length }; } }); } catch (e) {} }}
+              <Pressable key={n} onPress={async () => { try { let r = ARAB_REP[n] ? await arabRepertoire(n) : []; if (!r.length) r = await searchCached(qq); let k = 0; const sfx = ['', ' הכי טוב', ' מומלץ', ' קלאסיקות', ' שירים חדשים', ' מחרוזת', ' פופולרי', ' להיטי כל הזמנים']; A.open({ title: n, genre: true, desc: GENRE_DESC[n] || '', items: r, more: ARAB_REP[n] ? null : async () => { const out = []; while (k < sfx.length && out.length < 30) { const x = await searchCached(qq + sfx[k++]); out.push(...x); } return { tracks: out, done: k >= sfx.length }; } }); } catch (e) {} }}
                 style={[{ width: '48.5%', height: 88, borderRadius: 12, marginBottom: 10, backgroundColor: GRADS[i % GRADS.length][0], justifyContent: 'center', padding: 14 }, Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, ' + GRADS[i % GRADS.length][0] + ', ' + GRADS[(i + 2) % GRADS.length][1] + ')' } : null]}>
                 <Text style={{ color: '#fff', fontWeight: '800', fontSize: 19, textAlign: 'right' }}>{n}</Text>
               </Pressable>
@@ -730,8 +731,28 @@ function ListPage({ c, A, page }) {
   return (
     <View>
       <Pressable onPress={A.back} style={{ padding: 16 }}><Text style={{ color: RED, fontSize: 16, textAlign: 'right' }}>{'› חזרה'}</Text></Pressable>
-      <Text style={[s.large, { color: c.fg }]}>{page.title}</Text>
-      {!!items.length && (
+      {page.genre && !!items.length && (
+        <View>
+          <View style={{ alignSelf: 'center', width: '82%', aspectRatio: 1, maxWidth: 360, borderRadius: 22, overflow: 'hidden', backgroundColor: c.card, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 22, shadowOffset: { width: 0, height: 10 }, elevation: 8 }}>
+            {!!items[0].thumb && <Image source={{ uri: items[0].thumb }} style={{ width: '100%', height: '100%' }} />}
+          </View>
+          <Text style={{ color: c.fg, fontSize: 32, fontWeight: '800', textAlign: 'right', marginHorizontal: 20, marginTop: 18 }}>{page.title}</Text>
+          {!!page.desc && <Text style={{ color: c.fg, fontSize: 18, fontWeight: '600', textAlign: 'right', marginHorizontal: 20, marginTop: 6 }}>{page.desc}</Text>}
+          <Text style={{ color: c.sub, fontSize: 13, textAlign: 'right', marginHorizontal: 20, marginTop: 4 }}>{'שירים · אמנים · אלבומים ו-EP'}</Text>
+          <Pressable onPress={() => A.play(items[0], items)} style={{ alignSelf: 'flex-end', backgroundColor: RED, borderRadius: 24, paddingHorizontal: 30, paddingVertical: 12, marginHorizontal: 20, marginTop: 16 }}><Text style={{ color: '#fff', fontWeight: '800', fontSize: 17 }}>{'התחל ▶'}</Text></Pressable>
+          <Text style={[s.h2, { color: c.fg, marginTop: 24, marginBottom: 6 }]}>אמנים מומלצים בתחום</Text>
+          <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+            {(() => { const seenA = new Set(); return items.filter((t) => { const k = norm(String(t.artist).replace(/ - Topic$/i, '')); if (seenA.has(k)) return false; seenA.add(k); return true; }).slice(0, 10); })().map((t) => { const n = String(t.artist).replace(/ - Topic$/i, ''); return (
+              <Pressable key={t.id} onPress={() => A.openArtist(n, t.ch)} style={{ width: 150, alignItems: 'center', marginLeft: 12 }}>
+                <View style={{ width: 140, height: 140, borderRadius: 70, overflow: 'hidden', backgroundColor: c.card }}>{!!t.thumb && <Image source={{ uri: t.thumb }} style={{ width: 140, height: 140 }} />}</View>
+                <Text numberOfLines={1} style={{ color: c.fg, fontWeight: '700', marginTop: 8 }}>{n}</Text>
+              </Pressable>); })}
+          </HScroll>
+          <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 6 }]}>שירים בתחום</Text>
+        </View>
+      )}
+      {!page.genre && <Text style={[s.large, { color: c.fg }]}>{page.title}</Text>}
+      {!page.genre && !!items.length && (
         <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginTop: 8 }}>
           <Pressable onPress={() => A.play(items[0], items)} style={{ backgroundColor: RED, borderRadius: 18, paddingHorizontal: 22, paddingVertical: 7, marginLeft: 8 }}><Text style={{ color: '#fff', fontWeight: '700' }}>{'▶ נגן'}</Text></Pressable>
           <Pressable onPress={() => { const sh = items.slice().sort(() => Math.random() - 0.5); A.play(sh[0], sh); }} style={{ backgroundColor: c.card, borderRadius: 18, paddingHorizontal: 22, paddingVertical: 7 }}><Text style={{ color: c.fg, fontWeight: '700' }}>ערבוב</Text></Pressable>
