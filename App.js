@@ -583,7 +583,7 @@ function SearchTab({ c, A }) {
         <View style={{ paddingHorizontal: 16 }}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
             {GENRES.map(([n, qq], i) => (
-              <Pressable key={n} onPress={async () => { try { let r = ARAB_REP[n] ? await arabRepertoire(n) : []; if (!r.length) r = await searchCached(qq); A.open({ title: n, items: r }); } catch (e) {} }}
+              <Pressable key={n} onPress={async () => { try { let r = ARAB_REP[n] ? await arabRepertoire(n) : []; if (!r.length) r = await searchCached(qq); let k = 0; const sfx = ['', ' הכי טוב', ' מומלץ', ' קלאסיקות', ' שירים חדשים', ' מחרוזת', ' פופולרי', ' להיטי כל הזמנים']; A.open({ title: n, items: r, more: ARAB_REP[n] ? null : async () => { const out = []; while (k < sfx.length && out.length < 30) { const x = await searchCached(qq + sfx[k++]); out.push(...x); } return { tracks: out, done: k >= sfx.length }; } }); } catch (e) {} }}
                 style={[{ width: '48.5%', height: 88, borderRadius: 12, marginBottom: 10, backgroundColor: GRADS[i % GRADS.length][0], justifyContent: 'center', padding: 14 }, Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, ' + GRADS[i % GRADS.length][0] + ', ' + GRADS[(i + 2) % GRADS.length][1] + ')' } : null]}>
                 <Text style={{ color: '#fff', fontWeight: '800', fontSize: 19, textAlign: 'right' }}>{n}</Text>
               </Pressable>
@@ -671,7 +671,14 @@ function SearchTab({ c, A }) {
 }
 function ListPage({ c, A, page }) {
   const pl = page.pid ? A.playlists.find((p) => p.id === page.pid) : null;
-  const items = pl ? pl.tracks : page.items;
+  const [extra, setExtra] = useState([]);
+  const [moreSt, setMoreSt] = useState(page.more ? 'idle' : 'none');
+  const base = pl ? pl.tracks : page.items;
+  const items = extra.length ? base.concat(extra.filter((t) => !base.some((b) => b.id === t.id))) : base;
+  const loadMore = async () => {
+    setMoreSt('busy');
+    try { const r = await page.more(items); const have = new Set(items.map((t) => t.id)); const add = r.tracks.filter((t) => !have.has(t.id)).slice(0, 30); setExtra((e) => e.concat(add)); setMoreSt(r.done || !add.length ? 'done' : 'idle'); } catch (e) { setMoreSt('err'); }
+  };
   const [nm, setNm] = useState(page.title);
   return (
     <View>
@@ -694,6 +701,11 @@ function ListPage({ c, A, page }) {
         </View>
       )}
       {items.map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={(p) => A.sheet(t, p)} onPress={() => A.play(t, items)} />)}
+      {moreSt !== 'none' && (
+        <Pressable disabled={moreSt === 'busy' || moreSt === 'done'} onPress={loadMore} style={{ margin: 16, padding: 14, borderRadius: 12, backgroundColor: c.card, alignItems: 'center', opacity: moreSt === 'done' ? 0.6 : 1 }}>
+          <Text style={{ color: c.fg, fontWeight: '700' }}>{moreSt === 'busy' ? 'טוען שירים...' : moreSt === 'done' ? 'כל השירים הזמינים בתחום נטענו' : moreSt === 'err' ? 'הטעינה לא זמינה · נסה שוב' : 'טען עוד 30 שירים'}</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
