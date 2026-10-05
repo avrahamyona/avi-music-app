@@ -381,6 +381,10 @@ function Home({ c, A }) {
         {ACTIVITIES.map((t) => <Topic key={t[0]} t={t} c={c} A={A} />)}
       </View>
       <Shelf title="סינגלים חדשים" query="סינגל חדש ישראל 2026" c={c} A={A} />
+      <Text style={[s.h2, { color: c.fg, marginHorizontal: 16, textAlign: 'right', marginTop: 22 }]}>שירים עם חברים</Text>
+      <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
+        {FRIENDS.map((m, i) => <MoodTile key={m.name} m={m} i={i + 3} A={A} />)}
+      </HScroll>
     </View>
   );
 }
@@ -1158,6 +1162,15 @@ async function resolveMood(m) {
   }));
   return out.filter((t) => t && !seen.has(t.id) && seen.add(t.id));
 }
+const FRIENDS = [
+  { name: 'חברים · הכל ביחד', desc: 'מזרחי, פופ וקלאסיקות ישראליות', songs: [['פאר טסי', 'דרך השלום'], ['ישי ריבו', 'סיבת הסיבות'], ['עומר אדם', 'שני משוגעים'], ['משה פרץ', 'קרמלה'], ['אריק איינשטיין', 'אני ואתה'], ['סטטיק ובן אל', 'סלסולים']] },
+  { name: 'חברים · מזרחי כבד', desc: 'זוהר ארגוב, זהבה בן ועופר לוי', songs: [['זוהר ארגוב', 'בדד'], ['זהבה בן', 'טיפת מזל'], ['עופר לוי', 'יום הרווקים']] },
+  { name: 'חברים · מזרחי נעים', desc: 'שירים לשיר מהלב', songs: [['אייל גולן', 'צליל מיתר'], ['ישי לוי', 'ריקוד רומנטי'], ['משה פרץ', 'זיקוקים']] },
+  { name: 'חברים · מזרחי פופ', desc: 'קצב, סלסולים ופופ', songs: [['סטטיק ובן אל', 'סלסולים'], ['עומר אדם', 'שני משוגעים'], ['משה פרץ', 'קרמלה']] },
+  { name: 'חברים · ים תיכוני', desc: 'קלאסיקות של חפלה', songs: [['חיים משה', 'אהבת חיי'], ['זוהר ארגוב', 'הפרח בגני'], ['בועז שרעבי', 'לתת']] },
+  { name: 'חברים · פופ', desc: 'להיטים ישראליים בקצב', songs: [['סטטיק ובן אל', 'כביש החוף'], ['נועה קירל', 'פאוץ'], ['עדן חסון', 'שמישהו יעצור אותי']] },
+  { name: 'חברים · אריק וקלאסיקות', desc: 'אריק איינשטיין ושירים ישראליים', songs: [['אריק איינשטיין', 'אני ואתה'], ['אריק איינשטיין', 'עוף גוזל'], ['אריק איינשטיין', 'סע לאט']] },
+];
 function MoodTile({ m, i, A }) {
   const [img, setImg] = useState(null);
   useEffect(() => { let live = true; resolveMood({ songs: m.songs.slice(0, 2) }).then((r) => { if (live && r[0]) setImg(r[0].thumb); }).catch(() => {}); return () => { live = false; }; }, [m.name]);
