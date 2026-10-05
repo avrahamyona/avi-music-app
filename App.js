@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View, Text, TextInput, FlatList, Image, Pressable, StyleSheet, Animated, Easing,
-  useColorScheme, Platform, Share, Modal, ActivityIndicator, StatusBar, Linking, ScrollView, useWindowDimensions,
+  PanResponder, useColorScheme, Platform, Share, Modal, ActivityIndicator, StatusBar, Linking, ScrollView, useWindowDimensions,
 } from 'react-native';
 import * as player from './player';
 import { bus } from './bus';
@@ -143,8 +143,25 @@ function PlayerArt({ uri, playing, size, wide }) {
   return <Animated.Image source={{ uri }} style={{ width: size, height: size, borderRadius: wide ? 7 : 10, marginTop: 10, backgroundColor: '#8883', transform: [{ scale: v }] }} />;
 }
 
+let swipeQueue = null;
 function Row({ t, onPress, c, active, fav, onFav, onMore }) {
+  const dx = useRef(new Animated.Value(0)).current;
+  const [reveal, setReveal] = useState(false);
+  const tr = useRef(t); tr.current = t;
+  const pan = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (e, g) => Math.abs(g.dx) > 14 && Math.abs(g.dx) > Math.abs(g.dy) * 1.6,
+    onPanResponderGrant: () => setReveal(true),
+    onPanResponderMove: (e, g) => dx.setValue(Math.max(-140, Math.min(140, g.dx))),
+    onPanResponderRelease: (e, g) => {
+      if (Math.abs(g.dx) >= 100 && swipeQueue) swipeQueue(tr.current);
+      Animated.timing(dx, { toValue: 0, duration: 180, useNativeDriver: false }).start(() => setReveal(false));
+    },
+    onPanResponderTerminate: () => { Animated.timing(dx, { toValue: 0, duration: 180, useNativeDriver: false }).start(() => setReveal(false)); },
+  })).current;
   return (
+    <View>
+      {reveal && <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: '#2a7de1', justifyContent: 'center', alignItems: 'center' }}><Text style={{ color: '#fff', fontWeight: '700' }}>הבא בתור</Text></View>}
+      <Animated.View {...pan.panHandlers} style={{ transform: [{ translateX: dx }], backgroundColor: c.bg }}>
     <Pressable onPress={onPress} onLongPress={onMore} style={({ pressed }) => [s.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#8884', opacity: pressed ? 0.6 : 1 }]}>
       {t.thumb ? <Image source={{ uri: t.thumb }} style={s.thumb} /> : <View style={s.thumb} />}
       <View style={{ flex: 1, marginHorizontal: 12 }}>
@@ -155,6 +172,8 @@ function Row({ t, onPress, c, active, fav, onFav, onMore }) {
       <Pressable onPress={onFav} style={{ padding: 8 }}><Icon name={fav ? 'heartfill' : 'heart'} size={18} color={fav ? RED : c.sub} /></Pressable>
       {!!onMore && <Pressable onPress={onMore} style={{ padding: 8 }}><Icon name="dots" size={18} color={c.sub} /></Pressable>}
     </Pressable>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -964,6 +983,7 @@ function AppInner() {
   const addPlaylist = (p) => setPlaylists((x) => { const n = [p, ...x.filter((y) => y.id !== p.id)]; store.set('playlists', n); return n; });
   const removePlaylist = (id) => setPlaylists((x) => { const n = x.filter((y) => y.id !== id); store.set('playlists', n); return n; });
   const queueNext = (t) => setQueue((q) => { const cc = curRef.current; const base = q.filter((x) => x.id !== t.id); const i = cc ? base.findIndex((x) => x.id === cc.id) : -1; base.splice(i + 1, 0, t); queueRef.current = base; return base; });
+  swipeQueue = (t) => { if (!curRef.current) return; queueNext(t); };
   const moveQ = (id, d) => setQueue((q) => { const i = q.findIndex((x) => x.id === id); const j = i + d; if (i < 0 || j < 0 || j >= q.length) return q; const n = [...q]; const tmp = n[i]; n[i] = n[j]; n[j] = tmp; queueRef.current = n; return n; });
   const queueLast = (t) => setQueue((q) => { const n = [...q.filter((x) => x.id !== t.id), t]; queueRef.current = n; return n; });
   const addToPlaylist = (pid, t) => setPlaylists((x) => { const n = x.map((p) => (p.id === pid && !p.tracks.some((y) => y.id === t.id) ? { ...p, tracks: [...p.tracks, t] } : p)); store.set('playlists', n); return n; });
