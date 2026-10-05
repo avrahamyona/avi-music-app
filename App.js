@@ -1158,16 +1158,25 @@ async function resolveMood(m) {
   }));
   return out.filter((t) => t && !seen.has(t.id) && seen.add(t.id));
 }
+function MoodTile({ m, i, A }) {
+  const [img, setImg] = useState(null);
+  useEffect(() => { let live = true; resolveMood({ songs: m.songs.slice(0, 2) }).then((r) => { if (live && r[0]) setImg(r[0].thumb); }).catch(() => {}); return () => { live = false; }; }, [m.name]);
+  const col = MOOD_COLORS[i % MOOD_COLORS.length];
+  return (
+    <Pressable onPress={() => A.open({ kind: 'mood', mood: m, color: col, title: m.name })}
+      style={({ hovered }) => ({ width: 176, height: 128, borderRadius: 14, marginLeft: 12, overflow: 'hidden', justifyContent: 'flex-end', backgroundColor: col, transform: [{ translateY: hovered ? -4 : 0 }], ...(Platform.OS === 'web' ? { transition: 'transform .18s ease' } : {}) })}>
+      {img ? <Image source={{ uri: img }} style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, opacity: 0.45 }} /> : null}
+      <View style={{ padding: 14 }}>
+        <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800', textAlign: 'right' }}>{m.name}</Text>
+        <Text numberOfLines={1} style={{ color: '#fff', opacity: 0.9, fontSize: 12, textAlign: 'right' }}>{m.desc}</Text>
+      </View>
+    </Pressable>
+  );
+}
 function MoodTiles({ c, A }) {
   return (
     <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
-      {MOODS.map((m, i) => (
-        <Pressable key={m.name} onPress={() => A.open({ kind: 'mood', mood: m, color: MOOD_COLORS[i % MOOD_COLORS.length], title: m.name })}
-          style={{ width: 176, height: 128, borderRadius: 14, marginLeft: 12, padding: 14, justifyContent: 'flex-end', backgroundColor: MOOD_COLORS[i % MOOD_COLORS.length] }}>
-          <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800', textAlign: 'right' }}>{m.name}</Text>
-          <Text numberOfLines={1} style={{ color: '#fff', opacity: 0.85, fontSize: 12, textAlign: 'right' }}>{m.desc}</Text>
-        </Pressable>
-      ))}
+      {MOODS.map((m, i) => <MoodTile key={m.name} m={m} i={i} A={A} />)}
     </HScroll>
   );
 }
