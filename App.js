@@ -217,7 +217,7 @@ function Row({ t, onPress, c, active, fav, onFav, onMore, num }) {
   })).current;
   return (
     <View>
-      {reveal && <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: '#2a7de1', justifyContent: 'center', alignItems: 'center' }}><Text style={{ color: '#fff', fontWeight: '700' }}>הבא בתור</Text></View>}
+      {reveal && <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: '#2a7de1', justifyContent: 'center', alignItems: 'center' }}><Text style={{ color: '#fff', fontWeight: '700' }}>התור המקורי</Text></View>}
       <Animated.View {...pan.panHandlers} style={{ transform: [{ translateX: dx }], backgroundColor: c.bg }}>
     <Pressable onPress={onPress} onLongPress={(e) => onMore && onMore(ptOf(e))} style={({ pressed }) => [s.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#8884', opacity: pressed ? 0.6 : 1 }]}>
       {num ? <Text style={{ color: c.sub, fontSize: 15, width: 34, textAlign: 'center' }}>{num}</Text> : t.thumb ? <Image source={{ uri: t.thumb }} style={s.thumb} /> : <View style={s.thumb} />}
@@ -311,6 +311,7 @@ function Home({ c, A }) {
       <Shelf title="מוזיקה חדשה" query="שירים פופולריים ישראל" c={c} A={A} />
       <Shelf title="כולם מקשיבים ל..." query="להיטים ישראלים" c={c} A={A} wide />
       {seeds.length > 1 && <Shelf title="עוד שירים בשבילך" query={seeds[1] + ' להיטים'} c={c} A={A} />}
+      {!!seeds.length && <PersonalAlbums c={c} A={A} names={seeds.slice(0, 6)} chs={seeds.slice(0, 3).map((n) => { const tk = byArtist(n); return tk && tk.ch; }).filter(Boolean)} />}
       {!!seeds.length && (
         <View style={{ marginTop: 22 }}>
           <Text style={[s.h2, { color: c.fg, marginHorizontal: 16, textAlign: 'right' }]}>אמנים מועדפים</Text>
@@ -816,6 +817,47 @@ async function wjson(path) {
 const ytThumb = (id) => 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg';
 
 const wideScreenX = () => Dimensions.get('window').width >= 900;
+function PersonalAlbums({ c, A, chs, names }) {
+  const [fam, setFam] = useState([]);
+  const [fresh, setFresh] = useState([]);
+  const key = chs.join(',');
+  useEffect(() => {
+    if (!chs.length) return;
+    let live = true;
+    const yr = new Date().getFullYear() - 2;
+    (async () => {
+      try {
+        const all = await Promise.all(chs.slice(0, 3).map((ch) => wjson('/music-artist/' + ch).then((j) => (j.releases || []).filter((r) => r.plId && r.title)).catch(() => [])));
+        const seen = new Set();
+        const f = [];
+        all.forEach((rs) => { rs.slice(0, 2).forEach((r) => { if (!seen.has(r.plId)) { seen.add(r.plId); f.push(r); } }); });
+        if (live) setFam(f);
+        const sim = await wjson('/similar-artists/' + chs[0]).then((j) => j.artists || []).catch(() => []);
+        const nm = names.map((n) => String(n).toLowerCase());
+        const cand = sim.filter((a) => a.id && !chs.includes(a.id) && !nm.includes(String(a.name).toLowerCase())).slice(0, 4);
+        const got = await Promise.all(cand.map((a) => wjson('/music-artist/' + a.id).then((j) => (j.releases || []).filter((r) => r.plId && r.title && Number(r.releaseYear) >= yr).sort((x, y) => Number(y.releaseYear) - Number(x.releaseYear))[0]).catch(() => null)));
+        if (live) setFresh(got.filter((r) => r && !seen.has(r.plId)));
+      } catch (e) {}
+    })();
+    return () => { live = false; };
+  }, [key]);
+  const shelf = (title, note, list) => !!list.length && (
+    <View style={{ marginTop: 22 }}>
+      <Text style={[s.h2, { color: c.fg, marginHorizontal: 16, textAlign: 'right' }]}>{title}</Text>
+      <Text style={{ color: c.sub, fontSize: 12, marginHorizontal: 16, textAlign: 'right', marginBottom: 6 }}>{note}</Text>
+      <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+        {list.map((al) => <Card key={al.plId} t={{ title: al.title, thumb: al.thumb, artist: al.releaseYear || '' }} c={c} onPress={() => A.openAlbum(al)} />)}
+      </HScroll>
+    </View>
+  );
+  return (
+    <View>
+      {shelf('אלבומים מומלצים', 'אלבומים מהאמנים שאתה שומע, לפי קטלוג האמן', fam)}
+      {shelf('המלצות לזמרים חדשים', 'אמנים דומים שלא מופיעים בהאזנה שלך · הוצאות מהשנתיים האחרונות', fresh)}
+    </View>
+  );
+}
+
 function ArtistPage({ c, A, page }) {
   const [songs, setSongs] = useState(null);
   const [albums, setAlbums] = useState(null);
@@ -1227,6 +1269,7 @@ function AppInner() {
   const [full, setFull] = useState(false);
   const [destMenu, setDestMenu] = useState(false);
   const [credits, setCredits] = useState(null);
+  const [prevOpen, setPrevOpen] = useState(false);
   const [showLyr, setShowLyr] = useState(false);
   const [showQ, setShowQ] = useState(false);
   const [shuffle, setShuffle] = useState(false);
@@ -1556,7 +1599,9 @@ function AppInner() {
             <Pressable onPress={() => go(1)} style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginHorizontal: 9 }}><Icon name="next" size={19} color={c.fg} /></Pressable>
           </View>}
         </View>}
-        {showQ && <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginTop: 12 }}><Pressable onPress={() => setShuffle((v) => !v)} style={{ padding: 8 }}><Icon name="shuffle" size={20} color={shuffle ? RED : c.fg} /></Pressable><Pressable onPress={() => setRepeat((r) => (r === 'off' ? 'all' : r === 'all' ? 'one' : 'off'))} style={{ padding: 8 }}><Icon name="repeat" size={20} color={repeat === 'off' ? c.fg : RED} /></Pressable><Pressable onPress={toggleAutoNext} style={{ padding: 8 }}><Text style={{ color: autoNext ? RED : c.fg, fontSize: 20, fontWeight: '800' }}>∞</Text></Pressable><Text style={[s.h2, { color: c.fg, flex: 1, textAlign: 'right' }]}>הבא בתור</Text></View>}
+        {showQ && <Pressable onPress={() => setPrevOpen((v) => !v)} style={{ alignSelf: 'stretch', paddingVertical: 8 }}><Text style={{ color: c.fg, fontSize: 16, fontWeight: '800', textAlign: 'right' }}>{'ניגן קודם ' + (prevOpen ? '▾' : '‹')}</Text></Pressable>}
+        {showQ && prevOpen && (history.filter((x) => !cur || x.id !== cur.id).length ? history.filter((x) => !cur || x.id !== cur.id).slice(0, 20).map((t) => <Row key={'p' + t.id} t={t} c={c} active={false} fav={isFav(t)} onFav={() => toggleFav(t)} onMore={() => setSheet(t)} onPress={() => play(t, [t])} />) : <Text style={{ color: c.sub, fontSize: 13, textAlign: 'right', paddingBottom: 8 }}>השירים שתשמע מכאן והלאה יופיעו כאן</Text>)}
+        {showQ && <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginTop: 12 }}><Pressable onPress={() => setShuffle((v) => !v)} style={{ padding: 8 }}><Icon name="shuffle" size={20} color={shuffle ? RED : c.fg} /></Pressable><Pressable onPress={() => setRepeat((r) => (r === 'off' ? 'all' : r === 'all' ? 'one' : 'off'))} style={{ padding: 8 }}><Icon name="repeat" size={20} color={repeat === 'off' ? c.fg : RED} /></Pressable><Pressable onPress={toggleAutoNext} style={{ padding: 8 }}><Text style={{ color: autoNext ? RED : c.fg, fontSize: 20, fontWeight: '800' }}>∞</Text></Pressable><Text style={[s.h2, { color: c.fg, flex: 1, textAlign: 'right' }]}>התור המקורי</Text></View>}
         {showQ && <Text style={{ color: c.sub, fontSize: 12, textAlign: 'right', marginTop: 4, alignSelf: 'stretch' }}>{autoNext ? '∞ הפעלה אינסופית · שמירת עד 10 שירים בהמשך התור' : '∞ הפעלה אינסופית כבויה'}</Text>}
         {showQ && <View style={{ width: '100%', backgroundColor: 'transparent' }}>
           {queue.slice(Math.max(0, queue.findIndex((t) => t.id === cur.id) + 1), 40).map((t) => <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center' }}><View style={{ flex: 1 }}><Row t={t} c={c} active={false} fav={isFav(t)} onFav={() => toggleFav(t)} onMore={() => setSheet(t)} onPress={() => play(t)} /></View><View><Pressable onPress={() => removeFromQueue(t)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>✕</Text></Pressable><Pressable onPress={() => moveQ(t.id, -1)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>▲</Text></Pressable><Pressable onPress={() => moveQ(t.id, 1)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>▼</Text></Pressable></View></View>)}
