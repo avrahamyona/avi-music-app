@@ -779,6 +779,7 @@ export default function App() {
   const gen = useRef(0);
   const barW = useRef(1);
   const queueRef = useRef([]);
+  const autoBusy = useRef(false);
   const curRef = useRef(null);
   const playRef = useRef(null);
   queueRef.current = queue;
@@ -814,7 +815,16 @@ export default function App() {
     }
     let n = list[i + d];
     if (!n && repeatRef.current === 'all' && d > 0) n = list[0];
-    if (n) playRef.current(n);
+    if (n) { playRef.current(n); return; }
+    if (auto && d > 0 && !autoBusy.current) {
+      autoBusy.current = true;
+      const an = String(cc.artist || '').replace(/ - Topic$/i, '');
+      searchTracks(an + ' songs').then((r) => {
+        const seen = new Set(queueRef.current.map((x) => x.id));
+        const more = clean(r).filter((x) => !seen.has(x.id)).slice(0, 15);
+        if (more.length) { const nq = [...queueRef.current, ...more]; setQueue(nq); queueRef.current = nq; playRef.current(more[0]); }
+      }).catch(() => {}).finally(() => { autoBusy.current = false; });
+    }
   };
 
   // A failing song is never swapped for another: retry the same id, then say so.
