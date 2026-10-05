@@ -717,7 +717,7 @@ function MoodPage({ c, A, page }) {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
         {artists.map((n) => (
           <Pressable key={n} onPress={() => A.openArtist(n)} style={{ width: 96, alignItems: 'center', marginLeft: 12 }}>
-            <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: RED, fontSize: 28, fontWeight: '800' }}>{n.slice(0, 1)}</Text></View>
+            <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>{(() => { const m = tracks && tracks.find((t) => String(t.artist || '').includes(n)); return m && m.thumb ? <Image source={{ uri: m.thumb }} style={{ width: 80, height: 80 }} /> : <Text style={{ color: RED, fontSize: 28, fontWeight: '800' }}>{n.slice(0, 1)}</Text>; })()}</View>
             <Text numberOfLines={1} style={{ color: c.fg, marginTop: 6 }}>{n}</Text>
           </Pressable>
         ))}
