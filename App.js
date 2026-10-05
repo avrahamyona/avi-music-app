@@ -181,10 +181,20 @@ function tintBg(t, dark, alpha) {
   return 'rgba(' + [0, 1, 2].map((i) => mixc(t[i], base[i], w)).join(',') + ',' + alpha + ')';
 }
 
+function hiThumb(u) {
+  if (!u) return u;
+  if (/googleusercontent\.com|ggpht\.com/.test(u)) return u.replace(/=w\d+-h\d+[^?#]*$/, '=w720-h720-l90-rj').replace(/=s\d+[^?#]*$/, '=s720');
+  const m = /\/vi(?:_webp)?\/([A-Za-z0-9_-]{11})\//.exec(u);
+  if (m) return 'https://i.ytimg.com/vi/' + m[1] + '/maxresdefault.jpg';
+  return u;
+}
 function PlayerArt({ uri, playing, size, wide }) {
+  const hi = hiThumb(uri);
+  const [src, setSrc] = useState(hi);
+  useEffect(() => { setSrc(hiThumb(uri)); }, [uri]);
   const v = useRef(new Animated.Value(playing ? 1 : 0.8)).current;
   useEffect(() => { Animated.timing(v, { toValue: playing ? 1 : 0.8, duration: 220, easing: Easing.bezier(0.25, 0.1, 0.25, 1), useNativeDriver: false }).start(); }, [playing]);
-  return <Animated.Image source={{ uri }} style={{ width: size, height: size, borderRadius: wide ? 7 : 10, marginTop: 10, backgroundColor: '#8883', transform: [{ scale: v }] }} />;
+  return <Animated.Image source={{ uri: src }} resizeMode="cover" onError={() => { if (src !== uri) setSrc(uri); }} onLoad={(e) => { const w = e && e.nativeEvent && e.nativeEvent.source && e.nativeEvent.source.width; if (w && w <= 130 && src !== uri) setSrc(uri); }} style={{ width: size, height: size, borderRadius: wide ? 7 : 10, marginTop: 10, backgroundColor: '#8883', transform: [{ scale: v }] }} />;
 }
 
 const ptOf = (e) => (e && e.nativeEvent && e.nativeEvent.pageX != null ? { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY } : null);
