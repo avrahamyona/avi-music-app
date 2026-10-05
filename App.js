@@ -129,6 +129,14 @@ function HScroll({ children, contentContainerStyle, ...rest }) {
   );
 }
 
+const mixc = (c, t, w) => Math.round(c * w + t * (1 - w));
+function tintBg(t, dark, alpha) {
+  if (!t) return null;
+  const base = dark ? [49, 48, 50] : [244, 244, 246];
+  const w = dark ? 0.4 : 0.5;
+  return 'rgba(' + [0, 1, 2].map((i) => mixc(t[i], base[i], w)).join(',') + ',' + alpha + ')';
+}
+
 function PlayerArt({ uri, playing, size, wide }) {
   const v = useRef(new Animated.Value(playing ? 1 : 0.88)).current;
   useEffect(() => { Animated.timing(v, { toValue: playing ? 1 : 0.88, duration: 220, easing: Easing.bezier(0.25, 0.1, 0.25, 1), useNativeDriver: false }).start(); }, [playing]);
@@ -718,6 +726,16 @@ function MoodTiles({ c, A }) {
 function MoodPage({ c, A, page }) {
   const [tracks, setTracks] = useState(null);
   useEffect(() => { let live = true; resolveMood(page.mood).then((r) => live && setTracks(r)).catch(() => live && setTracks([])); return () => { live = false; }; }, [page.title]);
+  const [albums, setAlbums] = useState([]);
+  useEffect(() => {
+    if (!tracks || !tracks.length) return;
+    let live = true;
+    const chs = [];
+    for (const t of tracks) if (t.ch && !chs.includes(t.ch)) chs.push(t.ch);
+    Promise.all(chs.slice(0, 4).map((ch) => wjson('/music-artist/' + ch).then((j) => (j.releases || []).filter((r) => r.plId).slice(0, 4)).catch(() => [])))
+      .then((all) => { if (live) { const seen = new Set(); setAlbums(all.flat().filter((a) => !seen.has(a.plId) && seen.add(a.plId)).slice(0, 12)); } });
+    return () => { live = false; };
+  }, [tracks]);
   const artists = [];
   for (const [a] of page.mood.songs) if (!artists.includes(a)) artists.push(a);
   return (
@@ -744,6 +762,14 @@ function MoodPage({ c, A, page }) {
           </Pressable>
         ))}
       </HScroll>
+      {!!albums.length && (
+        <View>
+          <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 6 }]}>אלבומים מומלצים</Text>
+          <HScroll showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+            {albums.map((al) => <Card key={al.plId} t={{ title: al.title, thumb: al.thumb, artist: al.releaseYear || '' }} c={c} onPress={() => A.openAlbum(al)} />)}
+          </HScroll>
+        </View>
+      )}
       <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 6 }]}>שירים</Text>
       {!tracks && <ActivityIndicator color={RED} style={{ margin: 14 }} />}
       {!!tracks && !tracks.length && <Text style={{ color: c.sub, textAlign: 'center', margin: 14 }}>לא נמצאו שירים מאומתים כרגע. נסה שוב בעוד רגע.</Text>}
@@ -786,6 +812,28 @@ function AppInner() {
   const [pages, setPages] = useState([]);
   const [queue, setQueue] = useState([]);
   const [cur, setCur] = useState(null);
+  const [tint, setTint] = useState(null);
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !cur || !cur.thumb) { setTint(null); return; }
+    let live = true;
+    try {
+      const im = new window.Image();
+      im.crossOrigin = 'anonymous';
+      im.onload = () => {
+        try {
+          const cv = document.createElement('canvas'); cv.width = cv.height = 24;
+          const cx = cv.getContext('2d'); cx.drawImage(im, 0, 0, 24, 24);
+          const d = cx.getImageData(0, 0, 24, 24).data;
+          let r = 0, g = 0, b = 0, n = 0;
+          for (let i = 0; i < d.length; i += 16) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
+          if (live && n) setTint([Math.round(r / n), Math.round(g / n), Math.round(b / n)]);
+        } catch (e) { if (live) setTint(null); }
+      };
+      im.onerror = () => { if (live) setTint(null); };
+      im.src = cur.thumb;
+    } catch (e) {}
+    return () => { live = false; };
+  }, [cur && cur.id]);
   const [status, setStatus] = useState('');
   const [playing, setPlaying] = useState(false);
   const [pos, setPos] = useState(0);
@@ -958,7 +1006,7 @@ function AppInner() {
     </View>
   );
   const mini = cur && (
-    <View style={{ position: 'absolute', bottom: wideScreen ? 18 : 78, alignSelf: 'center', width: wideScreen ? 520 : '94%', borderRadius: wideScreen ? 20 : 14, backgroundColor: c.card, ...(Platform.OS === 'web' ? { backgroundColor: dark ? 'rgba(37,37,41,0.62)' : 'rgba(242,242,244,0.62)', backdropFilter: 'blur(28px) saturate(180%)', WebkitBackdropFilter: 'blur(28px) saturate(180%)' } : null), borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, paddingVertical: 8, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}>
+    <View style={{ position: 'absolute', bottom: wideScreen ? 18 : 78, alignSelf: 'center', width: wideScreen ? 520 : '94%', borderRadius: wideScreen ? 20 : 14, backgroundColor: c.card, ...(Platform.OS === 'web' ? { backgroundColor: tintBg(tint, dark, 0.78) || (dark ? 'rgba(37,37,41,0.62)' : 'rgba(242,242,244,0.62)'), backdropFilter: 'blur(28px) saturate(180%)', WebkitBackdropFilter: 'blur(28px) saturate(180%)' } : null), borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, paddingVertical: 8, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}>
       <Pressable onPress={() => setFull(true)} style={{ flexDirection: 'row', alignItems: 'center' }}>
         {cur.thumb ? <Image source={{ uri: cur.thumb }} style={{ width: 44, height: 44, borderRadius: 6 }} /> : <View style={{ width: 44, height: 44, borderRadius: 6, backgroundColor: c.card2 }} />}
         <View style={{ flex: 1, marginHorizontal: 10 }}>
@@ -978,7 +1026,7 @@ function AppInner() {
   const fullView = full && cur && (
     <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: wideScreen ? 'rgba(0,0,0,0.55)' : c.bg, alignItems: 'center', justifyContent: 'center' }}>
       {wideScreen && <Pressable onPress={() => setFull(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} />}
-      <View style={{ width: wideScreen ? 500 : '100%', height: '100%', maxHeight: wideScreen ? 790 : '100%', backgroundColor: c.bg, borderRadius: wideScreen ? 24 : 0, borderWidth: wideScreen ? 1 : 0, borderColor: c.line, padding: 20, paddingTop: Platform.OS === 'web' || Platform.OS === 'windows' || wideScreen ? 20 : 48 }}>
+      <View style={{ width: wideScreen ? 500 : '100%', height: '100%', maxHeight: wideScreen ? 790 : '100%', backgroundColor: (Platform.OS === 'web' && tintBg(tint, dark, 1)) || c.bg, borderRadius: wideScreen ? 24 : 0, borderWidth: wideScreen ? 1 : 0, borderColor: c.line, padding: 20, paddingTop: Platform.OS === 'web' || Platform.OS === 'windows' || wideScreen ? 20 : 48 }}>
       <Pressable onPress={() => setFull(false)} style={{ padding: 8 }}><View style={{ alignItems: 'center' }}><Icon name="chevdown" size={28} color={c.sub} /></View></Pressable>
       <ScrollView contentContainerStyle={{ alignItems: 'center' }}>
         {cur.thumb ? <PlayerArt uri={cur.thumb} playing={playing} wide={wideScreen} size={wideScreen ? 340 : Math.min(340, width * 0.86)} /> : null}
