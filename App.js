@@ -1813,7 +1813,7 @@ function AppInner() {
               <Pressable onPress={cycleTheme} style={s.theme}><Text style={{ color: c.fg, fontSize: 20 }}>{override === null ? '🌓' : dark ? '🌙' : '☀️'}</Text></Pressable>
             </View>
           )}
-          <FadeIn k={tab + '|' + pages.length + '|' + (page && (page.title || page.kind))}>{content}</FadeIn>
+          <FadeIn k={tab + '|' + pages.length + '|' + (page && (page.title || page.kind))}><Boundary inline k={tab + '|' + pages.length}>{content}</Boundary></FadeIn>
           {mini}
           {!wideScreen && (
             <View style={{ paddingHorizontal: 16, paddingBottom: 12, paddingTop: 4, backgroundColor: c.bg }}>
@@ -1863,14 +1863,21 @@ const s = StyleSheet.create({
 });
 
 class Boundary extends React.Component {
-  constructor(p) { super(p); this.state = { err: false }; }
-  static getDerivedStateFromError() { return { err: true }; }
+  constructor(p) { super(p); this.state = { err: null, k: p.k }; }
+  static getDerivedStateFromError(e) { return { err: e || new Error('unknown') }; }
+  componentDidCatch(e, info) { try { this.setState({ stack: String((info && info.componentStack) || (e && e.stack) || '').slice(0, 900) }); } catch (x) {} }
+  componentDidUpdate(p) { if (this.props.k !== p.k && this.state.err) this.setState({ err: null, stack: '' }); }
   render() {
     if (!this.state.err) return this.props.children;
+    const e = this.state.err;
+    const msg = String((e && (e.message || e)) || 'error').slice(0, 400);
+    const small = !!this.props.inline;
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#111114', padding: 24 }}>
+      <View style={{ flex: small ? 0 : 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#111114', padding: 24, alignSelf: 'stretch' }}>
         <Text style={{ color: '#fff', fontSize: 20, fontWeight: '700', textAlign: 'center' }}>משהו השתבש</Text>
-        <Pressable onPress={() => this.setState({ err: false })} style={{ marginTop: 16, backgroundColor: RED, borderRadius: 20, paddingHorizontal: 24, paddingVertical: 10 }}>
+        <Text selectable style={{ color: '#ffb4b4', fontSize: 12, marginTop: 10, textAlign: 'left', writingDirection: 'ltr', maxWidth: 640 }}>{'v' + BUILD + ' · ' + Platform.OS + ' · ' + msg}</Text>
+        {!!this.state.stack && <Text selectable style={{ color: '#aaa', fontSize: 10, marginTop: 6, textAlign: 'left', writingDirection: 'ltr', maxWidth: 640 }}>{this.state.stack}</Text>}
+        <Pressable onPress={() => this.setState({ err: null, stack: '' })} style={{ marginTop: 16, backgroundColor: RED, borderRadius: 20, paddingHorizontal: 24, paddingVertical: 10 }}>
           <Text style={{ color: '#fff', fontWeight: '700' }}>נסה שוב</Text>
         </Pressable>
       </View>
