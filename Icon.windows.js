@@ -3,7 +3,7 @@ import React from 'react';
 import { Text } from 'react-native';
 
 const G = {
-  home: '⌂', browse: '▦', radio: '◉', library: '♫', search: '⌕', heart: '♡', heartfill: '♥', dots: '⋯',
+  home: '⌂', browse: '▦', radio: '◉', library: '♫', search: '⌕', heart: '♡', heartfill: '♥', dots: '⋯', vol0: '🔈', vol1: '🔊',
   play: '▶', pause: '❚❚', prev: '⏮', next: '⏭', shuffle: '⇄', repeat: '⟲', chevdown: '⌄',
 };
 export default function Icon({ name, size = 22, color = '#000' }) {
