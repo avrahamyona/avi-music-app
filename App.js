@@ -4,6 +4,7 @@ import {
   PanResponder, useColorScheme, Appearance, AppState, Platform, Share, Modal, ActivityIndicator, StatusBar, Linking, ScrollView, useWindowDimensions, Dimensions,
 } from 'react-native';
 import * as player from './player';
+import { warm as warmAudio } from './audioSrc';
 import { bus } from './bus';
 import * as store from './storage';
 import { WORKER } from './config';
@@ -61,6 +62,7 @@ async function searchTracks(q) {
     if (r.status !== 'fulfilled') continue;
     for (const t of r.value) if (!seen.has(t.id)) { seen.add(t.id); out.push(t); }
   }
+  out.slice(0, 2).forEach((t) => warmAudio(t.id));
   return out;
 }
 
@@ -1211,11 +1213,13 @@ function AppInner() {
   const { width, height } = useWindowDimensions();
   const wideScreen = width >= 900;
   const [override, setOverride] = useState(null);
+  useEffect(() => { store.get('theme', null).then((v) => { if (v === 'dark' || v === 'light') setOverride(v); }).catch(() => {}); }, []);
   const dark = (override || system) === 'dark';
   const c = dark
     ? { bg: '#111114', fg: '#fff', sub: 'rgba(235,235,245,0.6)', card: '#252529', card2: '#303035', line: 'rgba(255,255,255,0.13)', side: '#1a1a1e' }
     : { bg: '#ffffff', fg: '#000', sub: 'rgba(60,60,67,0.6)', card: '#f2f2f4', card2: '#e9e9eb', line: 'rgba(0,0,0,0.08)', side: '#fafafa' };
 
+  const cycleTheme = () => { const nx = override === null ? 'dark' : override === 'dark' ? 'light' : null; setOverride(nx); store.set('theme', nx); toast(nx ? (nx === 'dark' ? 'ערכת נושא: כהה' : 'ערכת נושא: בהירה') : 'ערכת נושא: אוטומטית (המערכת: ' + (system === 'dark' ? 'כהה' : 'בהירה') + ')'); };
   const [upd, setUpd] = useState(null);
   useEffect(() => {
     const pre = Platform.OS === 'windows' ? 'win-' : Platform.OS === 'android' ? 'app-' : Platform.OS === 'ios' ? 'ios-' : null;
@@ -1414,10 +1418,33 @@ function AppInner() {
       const n = { total: (st.total || 0) + 1, months: { ...(st.months || {}), [mo]: ((st.months || {})[mo] || 0) + 1 }, artists: { ...(st.artists || {}), [an]: ((st.artists || {})[an] || 0) + 1 } };
       store.set('stats', n); return n;
     });
-    for (let i = 0; i < 3; i++) {
+    const t0 = Date.now();
+    const done = () => { try { const ms = Date.now() - t0; if (typeof window !== 'undefined') { (window.__ttp = window.__ttp || []).push(ms); } } catch (e) {} };
+    const after = (tt) => {
+      done();
+      const l = queueRef.current; const k = l.findIndex((x) => x.id === t.id);
+      for (let j = 1; j <= 2; j++) if (l[k + j]) warmAudio(l[k + j].id);
+    };
+    // 1) the same id, retried quickly (the first request to the source often fails and the next one works)
+    for (let i = 0; i < 5; i++) {
       if (g !== gen.current) return;
-      if (await player.load(t)) { if (g === gen.current) setStatus(''); return; }
+      if (await player.load(t)) { if (g === gen.current) { setStatus(''); after(t); } return; }
+      await new Promise((r) => setTimeout(r, 250 * (i + 1)));
     }
+    // 2) another recording of the SAME song: same title and same artist only, never a different song
+    if (g === gen.current) setStatus('מחפש הקלטה אחרת של אותו שיר...');
+    try {
+      const nt = norm(t.title), na = norm(String(t.artist).replace(/ - Topic$/i, ''));
+      const found = await searchTracks(t.title + ' ' + String(t.artist).replace(/ - Topic$/i, ''));
+      const alts = clean(found).filter((x) => x.id !== t.id && norm(x.title) === nt && norm(String(x.artist).replace(/ - Topic$/i, '')) === na && !(x.dur > 900)).slice(0, 3);
+      for (const alt of alts) {
+        if (g !== gen.current) return;
+        for (let i = 0; i < 2; i++) {
+          if (await player.load({ ...t, id: alt.id })) { if (g === gen.current) { setStatus(''); after(t); } return; }
+          await new Promise((r) => setTimeout(r, 250));
+        }
+      }
+    } catch (e) {}
     if (g === gen.current) setStatus('השיר לא זמין כרגע במקורות הישירים. לא עברנו לשיר אחר.');
   };
   playRef.current = play;
@@ -1671,8 +1698,8 @@ function AppInner() {
                 <Text style={{ color: tab === x.k ? RED : c.sub, fontSize: 16, fontWeight: '600' }}>{x.t}</Text>
               </Pressable>
             ))}
-            <Pressable onPress={() => setOverride(dark ? 'light' : 'dark')} style={{ padding: 10, marginTop: 'auto' }}>
-              <Text style={{ color: c.fg, fontSize: 18 }}>{dark ? '☀️ בהיר' : '🌙 כהה'}</Text>
+            <Pressable onPress={cycleTheme} style={{ padding: 10, marginTop: 'auto' }}>
+              <Text style={{ color: c.fg, fontSize: 18 }}>{override === null ? '🌓 אוטומטי' : dark ? '🌙 כהה' : '☀️ בהיר'}</Text>
             </Pressable>
           </View>
         )}
@@ -1681,7 +1708,7 @@ function AppInner() {
             <View style={s.top}>
               <View style={{ flex: 1 }} />
               {Badge}
-              <Pressable onPress={() => setOverride(dark ? 'light' : 'dark')} style={s.theme}><Text style={{ color: c.fg, fontSize: 20 }}>{dark ? '☀️' : '🌙'}</Text></Pressable>
+              <Pressable onPress={cycleTheme} style={s.theme}><Text style={{ color: c.fg, fontSize: 20 }}>{override === null ? '🌓' : dark ? '🌙' : '☀️'}</Text></Pressable>
             </View>
           )}
           <FadeIn k={tab + '|' + pages.length + '|' + (page && (page.title || page.kind))}>{content}</FadeIn>
