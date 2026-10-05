@@ -147,6 +147,20 @@ function Card({ t, onPress, c, wide, sub }) {
   );
 }
 
+function DragHandle({ onShift, color }) {
+  const dy = useRef(new Animated.Value(0)).current;
+  const cb = useRef(onShift); cb.current = onShift;
+  const pr = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderTerminationRequest: () => false,
+    onPanResponderMove: (e, g) => dy.setValue(g.dy),
+    onPanResponderRelease: (e, g) => { dy.setValue(0); const n = Math.round(g.dy / 60); if (n) cb.current(n); },
+    onPanResponderTerminate: () => dy.setValue(0),
+  })).current;
+  return <Animated.View {...pr.panHandlers} style={{ padding: 8, transform: [{ translateY: dy }], zIndex: 9, ...(Platform.OS === 'web' ? { cursor: 'grab', touchAction: 'none' } : {}) }}><Text style={{ color, fontSize: 18 }}>≡</Text></Animated.View>;
+}
+
 function FadeIn({ k, children }) {
   const v = useRef(new Animated.Value(0)).current;
   useEffect(() => { v.setValue(0); Animated.timing(v, { toValue: 1, duration: 200, easing: Easing.out(Easing.quad), useNativeDriver: false }).start(); }, [k]);
@@ -1556,7 +1570,7 @@ function AppInner() {
   const removePlaylist = (id) => setPlaylists((x) => { const n = x.filter((y) => y.id !== id); store.set('playlists', n); return n; });
   const queueNext = (t) => { toast('נוסף להבא בתור'); setQueue((q) => { const cc = curRef.current; const base = q.filter((x) => x.id !== t.id); const i = cc ? base.findIndex((x) => x.id === cc.id) : -1; base.splice(i + 1, 0, t); queueRef.current = base; return base; }); };
   swipeQueue = (t) => { if (!curRef.current) return; queueNext(t); };
-  const moveQ = (id, d) => setQueue((q) => { const i = q.findIndex((x) => x.id === id); const j = i + d; if (i < 0 || j < 0 || j >= q.length) return q; const n = [...q]; const tmp = n[i]; n[i] = n[j]; n[j] = tmp; queueRef.current = n; return n; });
+  const moveQ = (id, d) => setQueue((q) => { const i = q.findIndex((x) => x.id === id); const j = i + d; if (i < 0 || j < 0 || j >= q.length) return q; const n = [...q]; const [it] = n.splice(i, 1); n.splice(j, 0, it); queueRef.current = n; return n; });
   const queueLast = (t) => { toast('נוסף לסוף התור'); setQueue((q) => { const n = [...q.filter((x) => x.id !== t.id), t]; queueRef.current = n; return n; }); };
   const addToPlaylist = (pid, t) => { toast('נוסף לרשימה'); setPlaylists((x) => { const n = x.map((p) => (p.id === pid && !p.tracks.some((y) => y.id === t.id) ? { ...p, tracks: [...p.tracks, t] } : p)); store.set('playlists', n); return n; }) };
   const newPlaylist = (name, t) => setPlaylists((x) => { const p = { id: 'u' + Date.now(), name: name || 'פלייליסט חדש', tracks: t ? [t] : [], mine: true }; const n = [p, ...x]; store.set('playlists', n); return n; });
@@ -1714,7 +1728,7 @@ function AppInner() {
         {showQ && <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginTop: 12 }}><Pressable onPress={() => setShuffle((v) => !v)} style={{ padding: 8 }}><Icon name="shuffle" size={20} color={shuffle ? RED : c.fg} /></Pressable><Pressable onPress={() => setRepeat((r) => (r === 'off' ? 'all' : r === 'all' ? 'one' : 'off'))} style={{ padding: 8 }}><Icon name="repeat" size={20} color={repeat === 'off' ? c.fg : RED} /></Pressable><Pressable onPress={toggleAutoNext} style={{ padding: 8 }}><Text style={{ color: autoNext ? RED : c.fg, fontSize: 20, fontWeight: '800' }}>∞</Text></Pressable><Text style={[s.h2, { color: c.fg, flex: 1, textAlign: 'right' }]}>התור המקורי</Text></View>}
         {showQ && <Text style={{ color: c.sub, fontSize: 12, textAlign: 'right', marginTop: 4, alignSelf: 'stretch' }}>{autoNext ? '∞ הפעלה אינסופית · שמירת עד 10 שירים בהמשך התור' : '∞ הפעלה אינסופית כבויה'}</Text>}
         {showQ && <View style={{ width: '100%', backgroundColor: 'transparent' }}>
-          {queue.slice(Math.max(0, queue.findIndex((t) => t.id === cur.id) + 1), 40).map((t) => <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center' }}><View style={{ flex: 1 }}><Row t={t} c={c} active={false} fav={isFav(t)} onFav={() => toggleFav(t)} onMore={(pt) => { setAnchor(pt || null); setSheet(t); }} onPress={() => play(t)} /></View><View><Pressable onPress={() => removeFromQueue(t)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>✕</Text></Pressable><Pressable onPress={() => moveQ(t.id, -1)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>▲</Text></Pressable><Pressable onPress={() => moveQ(t.id, 1)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>▼</Text></Pressable></View></View>)}
+          {queue.slice(Math.max(0, queue.findIndex((t) => t.id === cur.id) + 1), 40).map((t) => <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center' }}><View style={{ flex: 1 }}><Row t={t} c={c} active={false} fav={isFav(t)} onFav={() => toggleFav(t)} onMore={(pt) => { setAnchor(pt || null); setSheet(t); }} onPress={() => play(t)} /></View><DragHandle color={c.sub} onShift={(n) => moveQ(t.id, n)} /><View><Pressable onPress={() => removeFromQueue(t)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>✕</Text></Pressable><Pressable onPress={() => moveQ(t.id, -1)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>▲</Text></Pressable><Pressable onPress={() => moveQ(t.id, 1)} style={{ padding: 6 }}><Text style={{ color: c.sub, fontSize: 14 }}>▼</Text></Pressable></View></View>)}
         </View>}
       </ScrollView>
       </View>
