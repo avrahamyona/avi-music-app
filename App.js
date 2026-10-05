@@ -172,6 +172,8 @@ function HScroll({ children, contentContainerStyle, ...rest }) {
 }
 
 const mixc = (c, t, w) => Math.round(c * w + t * (1 - w));
+let BlurView = null;
+try { if (Platform.OS === 'ios' || Platform.OS === 'android') BlurView = require('expo-blur').BlurView; } catch (e) { BlurView = null; }
 function tintBg(t, dark, alpha) {
   if (!t) return null;
   const base = dark ? [49, 48, 50] : [244, 244, 246];
@@ -1314,7 +1316,8 @@ function AppInner() {
     </View>
   );
   const mini = cur && (
-    <View style={{ position: 'absolute', bottom: wideScreen ? 18 : 78, alignSelf: 'center', width: wideScreen ? 520 : '94%', borderRadius: 14, backgroundColor: c.card, ...(Platform.OS === 'web' ? { backgroundColor: tintBg(tint, dark, 0.78) || (dark ? 'rgba(37,37,41,0.62)' : 'rgba(242,242,244,0.62)'), backdropFilter: 'blur(28px) saturate(180%)', WebkitBackdropFilter: 'blur(28px) saturate(180%)' } : null), borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, paddingVertical: 8, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}>
+    <View style={{ position: 'absolute', bottom: wideScreen ? 18 : 78, alignSelf: 'center', width: wideScreen ? 520 : '94%', borderRadius: 14, backgroundColor: c.card, ...(Platform.OS === 'web' ? { backgroundColor: tintBg(tint, dark, 0.78) || (dark ? 'rgba(37,37,41,0.62)' : 'rgba(242,242,244,0.62)'), backdropFilter: 'blur(28px) saturate(180%)', WebkitBackdropFilter: 'blur(28px) saturate(180%)' } : null), borderWidth: 1, borderColor: c.line, overflow: BlurView ? 'hidden' : 'visible', paddingHorizontal: 10, paddingVertical: 8, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}>
+      {BlurView ? <BlurView intensity={55} tint={dark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} /> : null}
       <Pressable onPress={() => setFull(true)} style={{ flexDirection: 'row', alignItems: 'center' }}>
         {cur.thumb ? <Image source={{ uri: cur.thumb }} style={{ width: 44, height: 44, borderRadius: 6 }} /> : <View style={{ width: 44, height: 44, borderRadius: 6, backgroundColor: c.card2 }} />}
         <View style={{ flex: 1, marginHorizontal: 10 }}>
@@ -1467,6 +1470,7 @@ function AppInner() {
           {!wideScreen && (
             <View style={{ paddingHorizontal: 10, paddingBottom: 6, paddingTop: 4, backgroundColor: c.bg }}>
             <View style={{ flexDirection: 'row', height: 56, borderRadius: 20, backgroundColor: c.card, ...(Platform.OS === 'web' ? { backgroundColor: dark ? 'rgba(37,37,41,0.62)' : 'rgba(242,242,244,0.62)', backdropFilter: 'blur(28px) saturate(180%)', WebkitBackdropFilter: 'blur(28px) saturate(180%)' } : null), borderWidth: StyleSheet.hairlineWidth, borderColor: c.line, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 }}>
+              {BlurView ? <BlurView intensity={55} tint={dark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} /> : null}
               {TABS.map((x) => (
                 <Pressable key={x.k} onPress={() => nav(x.k)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', margin: 5, borderRadius: 15, gap: 3, backgroundColor: tab === x.k ? c.card2 : 'transparent' }}>
                   <Icon name={x.i} size={24} color={tab === x.k ? RED : c.sub} />
