@@ -1076,6 +1076,7 @@ function AppInner() {
   const [pos, setPos] = useState(0);
   const [dur, setDur] = useState(0);
   const [full, setFull] = useState(false);
+  const [destMenu, setDestMenu] = useState(false);
   const [showLyr, setShowLyr] = useState(false);
   const [showQ, setShowQ] = useState(false);
   const [shuffle, setShuffle] = useState(false);
@@ -1344,7 +1345,11 @@ function AppInner() {
           <Pressable onPress={() => toggleFav(cur)} style={{ width: 37, height: 37, alignItems: 'center', justifyContent: 'center', marginLeft: 12 }}><Icon name={isFav(cur) ? 'heartfill' : 'heart'} size={22} color={isFav(cur) ? RED : c.fg} /></Pressable>
           <View style={{ flex: 1, direction: 'rtl', marginLeft: 12 }}>
             <Text numberOfLines={1} style={{ color: c.fg, fontSize: 19, fontWeight: '700', textAlign: 'right' }}>{cur.title}</Text>
-            <Pressable onPress={() => { setFull(false); openArtist(cur.artist, cur.ch); }}><Text numberOfLines={1} style={{ color: RED, fontSize: 16, textAlign: 'right' }}>{cur.artist}</Text></Pressable>
+            <Pressable onPress={() => setDestMenu((v) => !v)}><Text numberOfLines={1} style={{ color: RED, fontSize: 16, textAlign: 'right' }}>{cur.artist}</Text></Pressable>
+            {destMenu && <Pressable onPress={() => { setDestMenu(false); setFull(false); openArtist(cur.artist, cur.ch); }} style={{ position: 'absolute', right: 0, bottom: 52, minWidth: 190, backgroundColor: 'rgba(90,100,112,0.97)', borderRadius: 16, paddingVertical: 12, paddingHorizontal: 16, zIndex: 20 }}>
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', textAlign: 'right' }}>מעבר לאמן</Text>
+              <Text numberOfLines={1} style={{ color: '#d6dae0', fontSize: 12, textAlign: 'right', marginTop: 2 }}>{cur.artist}</Text>
+            </Pressable>}
           </View>
         </View>
         <View style={{ width: '100%', maxWidth: 434, marginTop: 22 }}>{bar}</View>
