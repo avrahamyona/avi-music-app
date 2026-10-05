@@ -541,7 +541,7 @@ function SearchTab({ c, A }) {
   for (const t of res) { const k = t.ch || norm(t.artist); if (!seen.has(k)) { seen.add(k); artists.push(t); } }
   return (
     <View>
-      <TextInput value={q} onChangeText={setQ} onSubmitEditing={() => go()} returnKeyType="search" placeholder="חפש שירים, אמנים..." placeholderTextColor={c.sub}
+      <TextInput value={q} onChangeText={setQ} onSubmitEditing={() => go()} returnKeyType="search" placeholder="אמנים, שירים, מילים ועוד" placeholderTextColor={c.sub}
         style={[s.input, { backgroundColor: c.card, color: c.fg, textAlign: 'right' }]} />
       <View style={{ flexDirection: 'row', direction: 'ltr', backgroundColor: c.card, borderRadius: 10, padding: 3, marginHorizontal: 16, marginBottom: 10 }}>
         {[['lib', 'הספריה'], ['all', 'Avi Music']].map(([k, n]) => (
@@ -555,8 +555,8 @@ function SearchTab({ c, A }) {
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
             {GENRES.map(([n, qq], i) => (
               <Pressable key={n} onPress={async () => { try { const r = await searchCached(qq); A.open({ title: n, items: r }); } catch (e) {} }}
-                style={{ width: '48.5%', height: 76, borderRadius: 12, marginBottom: 10, backgroundColor: GRADS[i % GRADS.length][0], justifyContent: 'flex-end', padding: 10 }}>
-                <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15, textAlign: 'right' }}>{n}</Text>
+                style={[{ width: '48.5%', height: 88, borderRadius: 12, marginBottom: 10, backgroundColor: GRADS[i % GRADS.length][0], justifyContent: 'center', padding: 14 }, Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, ' + GRADS[i % GRADS.length][0] + ', ' + GRADS[(i + 2) % GRADS.length][1] + ')' } : null]}>
+                <Text style={{ color: '#fff', fontWeight: '800', fontSize: 19, textAlign: 'right' }}>{n}</Text>
               </Pressable>
             ))}
           </View>
