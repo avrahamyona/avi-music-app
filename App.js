@@ -1235,7 +1235,7 @@ function AppInner() {
       play(t, list);
     } catch (e) {}
   };
-  const share = (t) => { try { Share.share({ message: t.title + ' - ' + t.artist + ' https://youtu.be/' + t.id }); } catch (e) {} };
+  const share = (t) => { try { Promise.resolve(Share.share({ message: t.title + ' - ' + t.artist + ' https://youtu.be/' + t.id })).catch(() => toast('לא הצלחתי לשתף')); } catch (e) { toast('לא הצלחתי לשתף'); } };
   const open = (p) => setPages((x) => [...x, p]);
   const back = () => setPages((x) => x.slice(0, -1));
   const openArtist = (name, ch) => open({ kind: 'artist', title: String(name).replace(/ - Topic$/i, ''), ch: ch || '' });
@@ -1246,7 +1246,9 @@ function AppInner() {
     if (!dur) return;
     player.seek(Math.max(0, Math.min(1, e.nativeEvent.locationX / barW.current)) * dur);
   };
-  const page = pages[pages.length - 1];
+  const top = pages[pages.length - 1];
+  const modalAlbum = !!(wideScreen && top && top.kind === 'album');
+  const page = modalAlbum ? pages[pages.length - 2] : top;
   const nav = (k) => { setTab(k); setPages([]); };
   const titleOf = (TABS.find((x) => x.k === tab) || {}).t;
 
@@ -1462,6 +1464,14 @@ function AppInner() {
         </View>
       </View>
       {fullView}
+      {modalAlbum && (
+        <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.62)', alignItems: 'center', justifyContent: 'center' }}>
+          <Pressable onPress={back} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} />
+          <View style={{ width: 760, maxWidth: '92%', maxHeight: '94%', backgroundColor: c.bg, borderRadius: 26, borderWidth: 1, borderColor: c.line, overflow: 'hidden' }}>
+            <ScrollView><AlbumPage c={c} A={A} page={top} modal /></ScrollView>
+          </View>
+        </View>
+      )}
       {sheetView}
       {!!toastMsg && <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: 96, alignItems: 'center' }}><View style={{ backgroundColor: 'rgba(40,40,44,0.96)', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 9, maxWidth: '86%' }}><Text style={{ color: '#fff', fontSize: 14, textAlign: 'center' }}>{toastMsg}</Text></View></View>}
     </View>
