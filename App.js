@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, TextInput, FlatList, Image, Pressable, StyleSheet, Animated, Easing,
-  PanResponder, useColorScheme, Platform, Share, Modal, ActivityIndicator, StatusBar, Linking, ScrollView, useWindowDimensions,
+  PanResponder, useColorScheme, Platform, Share, Modal, ActivityIndicator, StatusBar, Linking, ScrollView, useWindowDimensions, Dimensions,
 } from 'react-native';
 import * as player from './player';
 import { bus } from './bus';
@@ -595,6 +595,7 @@ async function wjson(path) {
 }
 const ytThumb = (id) => 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg';
 
+const wideScreenX = () => Dimensions.get('window').width >= 900;
 function ArtistPage({ c, A, page }) {
   const [songs, setSongs] = useState(null);
   const [albums, setAlbums] = useState(null);
@@ -620,17 +621,47 @@ function ArtistPage({ c, A, page }) {
   const cover = songs && songs[0];
   return (
     <View>
-      <Pressable onPress={A.back} style={{ padding: 16 }}><Text style={{ color: RED, fontSize: 16, textAlign: 'right' }}>{'› חזרה'}</Text></Pressable>
-      <View style={{ alignItems: 'center', paddingHorizontal: 16 }}>
-        {cover ? <Image source={{ uri: cover.thumb }} style={{ width: 160, height: 160, borderRadius: 80, backgroundColor: c.card }} /> : <View style={{ width: 160, height: 160, borderRadius: 80, backgroundColor: c.card }} />}
-        <Text style={{ color: c.fg, fontSize: 28, fontWeight: '800', marginTop: 12 }}>{page.title}</Text>
-        <Pressable disabled={!songs || !songs.length} onPress={() => A.play(songs[0], songs)} style={{ backgroundColor: RED, borderRadius: 20, paddingHorizontal: 28, paddingVertical: 8, marginTop: 10 }}>
-          <Text style={{ color: '#fff', fontWeight: '700' }}>{'▶ נגן'}</Text>
-        </Pressable>
-        {(() => { const fo = { title: page.title, ch: ch || page.ch || '', thumb: cover ? cover.thumb : '' }; const on = (A.follows.artists || []).some((x) => (x.ch || x.title) === (fo.ch || fo.title)); return (
-          <Pressable onPress={() => A.toggleFollow('artists', fo)} style={{ borderWidth: 1, borderColor: on ? RED : c.line, borderRadius: 20, paddingHorizontal: 22, paddingVertical: 6, marginTop: 8 }}><Text style={{ color: on ? RED : c.fg, fontWeight: '700' }}>{on ? 'עוקב ✓' : '+ עקוב'}</Text></Pressable>); })()}
-      </View>
-      <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 6 }]}>שירים</Text>
+      {(() => {
+        const fo = { title: page.title, ch: ch || page.ch || '', thumb: cover ? cover.thumb : '' };
+        const on = (A.follows.artists || []).some((x) => (x.ch || x.title) === (fo.ch || fo.title));
+        const circ = { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' };
+        const H = wideScreenX() ? 400 : 300;
+        const last = albums && albums[0];
+        return (
+          <View>
+            <View style={{ height: H, backgroundColor: c.card, overflow: 'hidden', borderRadius: wideScreenX() ? 0 : 0 }}>
+              {cover ? <Image source={{ uri: cover.thumb }} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, width: '100%', height: '100%', opacity: 0.55 }} resizeMode="cover" /> : null}
+              <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: H * 0.7, backgroundColor: c.bg, opacity: 0.35 }} />
+              <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: H * 0.35, backgroundColor: c.bg, opacity: 0.6 }} />
+              <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: H * 0.12, backgroundColor: c.bg }} />
+              <View style={{ position: 'absolute', top: 12, left: 14, right: 14, flexDirection: 'row-reverse', justifyContent: 'space-between' }}>
+                <Pressable onPress={A.back} style={circ}><Text style={{ color: '#fff', fontSize: 18 }}>{'→'}</Text></Pressable>
+                <Pressable onPress={() => A.sheet(songs && songs[0])} style={circ}><Icon name="dots" size={20} color="#fff" /></Pressable>
+              </View>
+              <View style={{ position: 'absolute', left: 14, right: 14, bottom: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center' }}>
+                  <Pressable onPress={() => A.toggleFollow('artists', fo)} style={circ}><Text style={{ color: on ? RED : '#fff', fontSize: 18 }}>{on ? '★' : '☆'}</Text></Pressable>
+                  <Pressable disabled={!songs || !songs.length} onPress={() => A.play(songs[0], songs)} style={{ width: 62, height: 62, borderRadius: 31, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginHorizontal: 12 }}><Icon name="play" size={30} color="#000" /></Pressable>
+                  <Pressable onPress={() => A.share && A.share(songs && songs[0])} style={circ}><Icon name="share" size={18} color="#fff" /></Pressable>
+                </View>
+                <Text numberOfLines={1} style={{ color: '#fff', fontSize: wideScreenX() ? 56 : 38, fontWeight: '800', flexShrink: 1, textAlign: 'right' }}>{page.title}</Text>
+              </View>
+            </View>
+            {!!last && (
+              <Pressable onPress={() => A.openAlbum(last)} style={{ alignSelf: 'center', width: '92%', maxWidth: 560, flexDirection: 'row', direction: 'ltr', alignItems: 'center', borderRadius: 14, borderWidth: 1, borderColor: c.line, backgroundColor: c.card, padding: 10, marginTop: 20 }}>
+                <Text style={{ color: c.sub, fontSize: 20, marginHorizontal: 6 }}>‹</Text>
+                <View style={{ flex: 1, direction: 'rtl' }}>
+                  <Text style={{ color: RED, fontSize: 12, textAlign: 'right' }}>מההוצאות האחרונות בקטלוג</Text>
+                  <Text numberOfLines={1} style={{ color: c.fg, fontSize: 17, fontWeight: '700', textAlign: 'right' }}>{last.title}</Text>
+                  <Text style={{ color: c.sub, fontSize: 13, textAlign: 'right' }}>{(last.releaseYear ? last.releaseYear + ' · ' : '') + 'לפי קטלוג האמן'}</Text>
+                </View>
+                {last.thumb ? <Image source={{ uri: last.thumb }} style={{ width: 80, height: 80, borderRadius: 8, marginLeft: 10 }} /> : null}
+              </Pressable>
+            )}
+          </View>
+        );
+      })()}
+      <Text style={[s.h2, { color: c.fg, marginTop: 22, marginBottom: 6 }]}>{'שירים מובילים ‹'}</Text>
       {!songs && <ActivityIndicator color={RED} style={{ margin: 14 }} />}
       {!!songs && !songs.length && <Text style={{ color: c.sub, textAlign: 'center' }}>לא נמצאו שירים</Text>}
       {!!songs && songs.slice(0, 10).map((t) => <Row key={t.id} t={t} c={c} active={A.cur && A.cur.id === t.id} fav={A.isFav(t)} onFav={() => A.toggleFav(t)} onMore={(p) => A.sheet(t, p)} onPress={() => A.play(t, songs)} />)}
@@ -1125,7 +1156,7 @@ function AppInner() {
   const back = () => setPages((x) => x.slice(0, -1));
   const openArtist = (name, ch) => open({ kind: 'artist', title: String(name).replace(/ - Topic$/i, ''), ch: ch || '' });
   const openAlbum = (al) => open({ kind: 'album', title: al.title, plId: al.plId, thumb: al.thumb, artist: al.artistName || '' });
-  const A = { follows, toggleFollow, sheet: (t, p) => { setAnchor(p || null); setSheet(t); }, cur, play, isFav, toggleFav, open, back, openArtist, openAlbum, history, favs, playlists, stats, addPlaylist, removePlaylist, newPlaylist, renamePlaylist };
+  const A = { share, follows, toggleFollow, sheet: (t, p) => { setAnchor(p || null); setSheet(t); }, cur, play, isFav, toggleFav, open, back, openArtist, openAlbum, history, favs, playlists, stats, addPlaylist, removePlaylist, newPlaylist, renamePlaylist };
 
   const seek = (e) => {
     if (!dur) return;
