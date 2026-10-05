@@ -2,7 +2,7 @@ import TrackPlayer, {
   Capability, Event, State, AppKilledPlaybackBehavior,
 } from 'react-native-track-player';
 import * as FileSystem from 'expo-file-system';
-import { WORKER } from './config';
+import { audioUrl } from './audioSrc';
 import { bus } from './bus';
 
 const subs = new Set();
@@ -53,7 +53,9 @@ async function fetchLocal(id) {
   } catch (e) {}
   for (let i = 0; i < 4; i++) {
     try {
-      const r = await FileSystem.downloadAsync(WORKER + '/audio/' + id, uri);
+      const src = await audioUrl(id);
+      if (!src) throw new Error('no source');
+      const r = await FileSystem.downloadAsync(src, uri);
       if (r.status === 200 || r.status === 206) {
         const info = await FileSystem.getInfoAsync(uri);
         if (info.exists && info.size > 50000) return uri;
