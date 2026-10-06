@@ -161,4 +161,56 @@ export function summarize(taste) {
   const hrs = taste.hours || [];
   const peak = hrs.indexOf(Math.max.apply(null, hrs.length ? hrs : [0]));
   return { topArtists: top.slice(0, 20).map((n) => ({ name: n, count: taste.artists[n] })), topSongs: (taste.topSongs || []).slice(0, 20), peakHour: peak >= 0 ? peak : null, total: taste.total || 0 };
+}
+
+// ---- Apple Music import: JSON {playlists:[{name,tracks:[{title,artist}]}], library:[...], recent:[...], artists:[...]} ----
+const norm = (s) => String(s || '').toLowerCase().replace(/\(.*?\)|\[.*?\]/g, ' ').replace(/\b(feat|ft)\b\.?.*$/, ' ').replace(/ - topic$/i, '').replace(/official (music )?video|official audio|lyrics?|audio|remastered( \d+)?/g, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+export function sameSong(want, got) {
+  const wt = norm(want.title), gt = norm(got.title);
+  const wa = norm(want.artist), ga = norm(got.artist + ' ' + got.title);
+  if (!wt || !gt) return false;
+  const titleOk = gt === wt || gt.indexOf(wt) >= 0 || wt.indexOf(gt) >= 0;
+  const first = wa.split(/ (?:and|&|x|,) /)[0].trim();
+  return titleOk && (!wa || ga.indexOf(first || wa) >= 0);
+}
+export function parseAppleExport(text) {
+  let j; try { j = JSON.parse(text); } catch (e) { return null; }
+  if (!j || typeof j !== 'object') return null;
+  const tr = (a) => (Array.isArray(a) ? a : []).filter((x) => x && x.title).map((x) => ({ title: String(x.title), artist: String(x.artist || ''), album: String(x.album || '') }));
+  return { playlists: (Array.isArray(j.playlists) ? j.playlists : []).map((p) => ({ name: String(p.name || 'פלייליסט'), tracks: tr(p.tracks) })).filter((p) => p.tracks.length), library: tr(j.library), recent: tr(j.recent), artists: (Array.isArray(j.artists) ? j.artists : []).map((a) => String(a.name || a)).filter(Boolean) };
+}
+// search(q) -> tracks[] (already filtered by the app). Never substitutes a different song.
+export async function matchTrack(t, search, cache) {
+  const key = norm(t.title) + '|' + norm(t.artist);
+  if (cache[key] !== undefined) return cache[key];
+  let found = null;
+  for (const q of [t.title + ' ' + t.artist, t.title + ' ' + t.artist + ' audio']) {
+    try { const r = await search(q); found = (r || []).find((x) => sameSong(t, x)) || null; } catch (e) { found = null; }
+    if (found) break;
+  }
+  cache[key] = found ? { id: found.id, title: found.title, artist: String(found.artist).replace(/ - Topic$/i, ''), thumb: found.thumb, dur: found.dur || 0, ch: found.ch || '' } : null;
+  return cache[key];
+}
+export async function importApple(data, A, onProgress) {
+  const cache = (await store.get('applematch', {})) || {};
+  const miss = []; let done = 0, ok = 0;
+  const total = data.playlists.reduce((n, p) => n + p.tracks.length, 0) + data.library.length + data.recent.length;
+  const run = async (list) => {
+    const out = [];
+    for (const t of list) {
+      const m = await matchTrack(t, A.search, cache);
+      done++; if (m) { ok++; out.push(m); } else miss.push(t.title + ' - ' + t.artist);
+      onProgress && onProgress(done, total);
+      if (done % 20 === 0) store.set('applematch', cache);
     }
+    return out;
+  };
+  for (const p of data.playlists) { const tracks = await run(p.tracks); if (tracks.length) A.addPlaylist({ id: 'apple-' + norm(p.name).replace(/ /g, '-'), name: p.name, tracks }); }
+  A.importFavs(await run(data.library));
+  const rec = await run(data.recent); if (rec.length) A.importHistory(rec);
+  const artists = {}; data.artists.forEach((n) => { artists[n] = (artists[n] || 0) + 10; });
+  data.library.concat(data.recent).forEach((t) => { if (t.artist) artists[t.artist] = (artists[t.artist] || 0) + 1; });
+  await A.mergeTaste({ artists, total: 0, topSongs: [], hours: [], months: {} });
+  store.set('applematch', cache);
+  return { total, ok, miss };
+}
