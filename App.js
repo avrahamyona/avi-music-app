@@ -1612,7 +1612,8 @@ function AppInner() {
   };
   const getTaste = () => store.get('taste', null);
   const importFavs = (list) => setFavs((f) => { const have = new Set(f.map((x) => x.id)); const n = [...f, ...(list || []).filter((x) => !have.has(x.id))]; store.set('favs', n); return n; });
-  const A = { mergeTaste, getTaste, importFavs, share, follows, toggleFollow, sheet: (t, p) => { setAnchor(p || null); setSheet(t); }, cur, play, isFav, toggleFav, open, back, openArtist, openAlbum, history, favs, playlists, stats, addPlaylist, removePlaylist, newPlaylist, renamePlaylist };
+  const importHistory = (list) => setHistory((h) => { const have = new Set(list.map((x) => x.id)); const n = [...list, ...h.filter((x) => !have.has(x.id))].slice(0, 60); store.set('history', n); return n; });
+  const A = { search: (q) => searchTracks(q).then(clean), importHistory, mergeTaste, getTaste, importFavs, share, follows, toggleFollow, sheet: (t, p) => { setAnchor(p || null); setSheet(t); }, cur, play, isFav, toggleFav, open, back, openArtist, openAlbum, history, favs, playlists, stats, addPlaylist, removePlaylist, newPlaylist, renamePlaylist };
 
   const seek = (e) => {
     if (!dur) return;
