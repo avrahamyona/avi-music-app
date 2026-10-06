@@ -9,6 +9,8 @@ import * as BusMod from './bus';
 import * as store from './storage';
 import * as CfgMod from './config';
 import * as MoodsMod from './moods';
+import * as acct from './account';
+import { LockScreen, AccountPanel } from './AccountPanel';
 import Icon, { MoodArt, MOOD_KIND } from './Icon';
 
 const VERSION = '0.2.0';
@@ -515,7 +517,7 @@ function Library({ c, A }) {
     <View>
       {!sec ? (
         <View style={{ marginTop: 8 }}>
-          {[['fav', 'שירים אהובים (' + (A.favs || []).length + ')'], ['hist', 'הושמע לאחרונה (' + (A.history || []).length + ')'], ['artists', 'אמנים (' + ((A.follows || {}).artists || []).length + ')'], ['albums', 'אלבומים (' + ((A.follows || {}).albums || []).length + ')'], ['stats', 'ההאזנה שלך · יום, שבוע, חודש והכול'], ['pls', 'ייבוא פלייליסט מיוטיוב'], ['pls', 'רשימות (' + (A.playlists || []).length + ')']].map(([k, n], i) => { const ic = { fav: 'heartfill', hist: 'clock', artists: 'playc', albums: 'library' }[k]; const plain = k === 'stats' || (k === 'pls' && i === 5); return (
+          {[['fav', 'שירים אהובים (' + (A.favs || []).length + ')'], ['hist', 'הושמע לאחרונה (' + (A.history || []).length + ')'], ['artists', 'אמנים (' + ((A.follows || {}).artists || []).length + ')'], ['albums', 'אלבומים (' + ((A.follows || {}).albums || []).length + ')'], ['stats', 'ההאזנה שלך · יום, שבוע, חודש והכול'], ['pls', 'ייבוא פלייליסט מיוטיוב'], ['acct', 'חשבון וטעם מוזיקלי'], ['pls', 'רשימות (' + (A.playlists || []).length + ')']].map(([k, n], i) => { const ic = { fav: 'heartfill', hist: 'clock', artists: 'playc', albums: 'library' }[k]; const plain = k === 'stats' || (k === 'pls' && i === 5) || k === 'acct'; return (
             <Pressable key={n} onPress={() => setSec(k)} style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'center', paddingVertical: plain ? 12 : 14, paddingHorizontal: 16, borderBottomWidth: plain ? 0 : StyleSheet.hairlineWidth, borderBottomColor: '#8884' }}>
               {!plain && <Text style={{ color: c.sub, fontSize: 18 }}>‹</Text>}
               <Text style={{ flex: 1, color: c.fg, fontSize: plain ? 15 : 17, textAlign: 'right' }}>{n}</Text>
@@ -563,6 +565,7 @@ function Library({ c, A }) {
           ))}
         </View>
       )}
+      {sec === 'acct' && <AccountPanel c={c} A={A} />}
       {sec === 'stats' && (
         <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
           <Text style={{ color: c.fg, fontSize: 18, fontWeight: '700', textAlign: 'right' }}>{'השמעות מאז ההתקנה: ' + (stats.total || 0)}</Text>
@@ -1594,7 +1597,22 @@ function AppInner() {
   const back = () => setPages((x) => x.slice(0, -1));
   const openArtist = (name, ch) => open({ kind: 'artist', title: String(name).replace(/ - Topic$/i, ''), ch: ch || '' });
   const openAlbum = (al) => open({ kind: 'album', title: al.title, plId: al.plId, thumb: al.thumb, artist: al.artistName || '' });
-  const A = { share, follows, toggleFollow, sheet: (t, p) => { setAnchor(p || null); setSheet(t); }, cur, play, isFav, toggleFav, open, back, openArtist, openAlbum, history, favs, playlists, stats, addPlaylist, removePlaylist, newPlaylist, renamePlaylist };
+  const mergeTaste = async (t) => {
+    const old = await store.get('taste', null);
+    const n = old ? { ...old } : { total: 0, artists: {}, topSongs: [], hours: new Array(24).fill(0), months: {} };
+    n.total = (n.total || 0) + (t.total || 0);
+    n.artists = { ...n.artists }; Object.keys(t.artists || {}).forEach((k) => { n.artists[k] = (n.artists[k] || 0) + t.artists[k]; });
+    const sm = {}; (n.topSongs || []).concat(t.topSongs || []).forEach((x) => { const k = x.title + '\u0001' + x.artist; sm[k] = (sm[k] || 0) + x.count; });
+    n.topSongs = Object.keys(sm).sort((a, b) => sm[b] - sm[a]).slice(0, 50).map((k) => { const q = k.split('\u0001'); return { title: q[0], artist: q[1], count: sm[k] }; });
+    n.hours = (n.hours || new Array(24).fill(0)).map((v, i) => v + ((t.hours || [])[i] || 0));
+    n.months = { ...n.months }; Object.keys(t.months || {}).forEach((k) => { n.months[k] = (n.months[k] || 0) + t.months[k]; });
+    store.set('taste', n);
+    setStats((st) => { const a = { ...(st.artists || {}) }; Object.keys(t.artists || {}).forEach((k) => { a[k] = (a[k] || 0) + t.artists[k]; }); const ns = { ...st, artists: a }; store.set('stats', ns); return ns; });
+    return n;
+  };
+  const getTaste = () => store.get('taste', null);
+  const importFavs = (list) => setFavs((f) => { const have = new Set(f.map((x) => x.id)); const n = [...f, ...(list || []).filter((x) => !have.has(x.id))]; store.set('favs', n); return n; });
+  const A = { mergeTaste, getTaste, importFavs, share, follows, toggleFollow, sheet: (t, p) => { setAnchor(p || null); setSheet(t); }, cur, play, isFav, toggleFav, open, back, openArtist, openAlbum, history, favs, playlists, stats, addPlaylist, removePlaylist, newPlaylist, renamePlaylist };
 
   const seek = (e) => {
     if (!dur) return;
@@ -1888,5 +1906,15 @@ class Boundary extends React.Component {
   }
 }
 
-export default function App() { return <Boundary><AppInner /></Boundary>; }
+function Gate() {
+  const scheme = useColorScheme();
+  const [st, setSt] = useState(acct.lockEnabled() ? 'wait' : 'ok');
+  useEffect(() => { if (st === 'wait') acct.check().then((r) => setSt(r.state === 'offline' ? 'ok' : r.state)).catch(() => setSt('out')); }, []);
+  const c = scheme === 'light' ? { bg: '#fff', fg: '#000', sub: 'rgba(60,60,67,0.6)' } : { bg: '#111114', fg: '#fff', sub: 'rgba(235,235,245,0.6)' };
+  if (st === 'ok') return <AppInner />;
+  if (st === 'wait') return <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={RED} /></View>;
+  return <LockScreen c={c} state={st} onDone={() => setSt('ok')} />;
+}
+
+export default function App() { return <Boundary><Gate /></Boundary>; }
 // build 1791231211
