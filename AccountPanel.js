@@ -65,6 +65,7 @@ export function AccountPanel({ c, A }) {
   const [busy, setBusy] = useState(false);
   const [paste, setPaste] = useState('');
   const [taste, setTaste] = useState(null);
+  const [apple, setApple] = useState(null);
   useEffect(() => { acct.check().then(setMe).catch(() => {}); A.getTaste().then(setTaste).catch(() => {}); }, []);
   const signedIn = me && me.state === 'ok' && !!me.email;
   const doYt = async () => {
@@ -85,6 +86,17 @@ export function AccountPanel({ c, A }) {
     setTaste(n); setMsg('יובאו ' + t.total + ' האזנות');
   };
   const doFile = async () => { const t = await pickFile(); if (t) await doText(t); };
+  const doApple = async () => {
+    const t = await pickFile(); if (!t) return;
+    const d = acct.parseAppleExport(t);
+    if (!d || !(d.playlists.length || d.library.length || d.recent.length)) { setMsg('הקובץ לא בפורמט הנכון.'); return; }
+    setBusy(true); setApple(null);
+    try {
+      const r = await acct.importApple(d, A, (n, tot) => setMsg('מתאים שירים: ' + n + '/' + tot));
+      setMsg('הותאמו ' + r.ok + ' מתוך ' + r.total + ' שירים'); setApple(r.miss.slice(0, 40));
+    } catch (e) { setMsg('הייבוא נעצר. אפשר להריץ שוב, ההתאמות נשמרו.'); }
+    setBusy(false);
+  };
   const sm = acct.summarize(taste);
   return (
     <View style={{ padding: 12 }}>
@@ -99,7 +111,15 @@ export function AccountPanel({ c, A }) {
           <Btn onPress={() => doText(paste)} disabled={busy || paste.length < 10} c={c}>ייבוא</Btn>
         </View>
       )}
+      {Platform.OS === 'web' && (
+        <View>
+          <Text style={{ color: c.fg, fontWeight: '700', textAlign: 'right', marginTop: 20 }}>ייבוא מ-Apple Music</Text>
+          <Text style={{ color: c.sub, textAlign: 'right', marginTop: 4 }}>בחר קובץ JSON עם פלייליסטים, ספרייה והאזנות אחרונות. כל שיר מותאם לאותו שיר ואותו אמן, בלי תחליפים.</Text>
+          <Btn onPress={doApple} disabled={busy} c={c}>בחירת קובץ Apple Music</Btn>
+        </View>
+      )}
       {!!msg && <Text style={{ color: c.sub, textAlign: 'center', marginTop: 10 }}>{msg}</Text>}
+      {!!apple && apple.length > 0 && <View style={{ marginTop: 8 }}><Text style={{ color: c.fg, textAlign: 'right', fontWeight: '700' }}>לא נמצאו:</Text>{apple.map((m) => <Text key={m} numberOfLines={1} style={{ color: c.sub, textAlign: 'right' }}>{m}</Text>)}</View>}
       {!!sm && sm.total > 0 && (
         <View style={{ marginTop: 18 }}>
           <Text style={{ color: c.fg, fontSize: 18, fontWeight: '700', textAlign: 'right' }}>הטעם שלך</Text>
@@ -123,4 +143,4 @@ export function AccountPanel({ c, A }) {
       {signedIn && <Btn ghost onPress={async () => { await acct.signOut(); setMe({ state: 'out' }); }} c={c}>התנתקות</Btn>}
     </View>
   );
-                             }
+      }
