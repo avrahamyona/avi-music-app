@@ -41,7 +41,7 @@ jobs:
       - name: Copy shared app code
         shell: bash
         run: |
-          cp App.js bus.js config.js player.windows.js storage.js storage.windows.js moods.js Icon.windows.js audioSrc.js AviWin/
+          cp App.js bus.js config.js player.windows.js storage.js storage.windows.js moods.js Icon.windows.js audioSrc.js account.js AccountPanel.js AviWin/
           cp player.native.js player.web.js AviWin/ || true
           sed -i "s/|| 'dev'/|| '${{ github.run_number }}'/" AviWin/App.js
           find AviWin/windows -maxdepth 3 -not -path '*/node_modules/*' | head -80
