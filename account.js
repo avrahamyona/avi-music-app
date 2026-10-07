@@ -167,10 +167,12 @@ export function summarize(taste) {
 const norm = (s) => String(s || '').toLowerCase().replace(/\(.*?\)|\[.*?\]/g, ' ').replace(/\b(feat|ft)\b\.?.*$/, ' ').replace(/ - topic$/i, '').replace(/official (music )?video|official audio|lyrics?|audio|remastered( \d+)?/g, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 export function sameSong(want, got) {
   const wt = norm(want.title), gt = norm(got.title);
-  const wa = norm(want.artist), ga = norm(got.artist + ' ' + got.title);
+  const wa = norm(want.artist), ga = norm(got.artist);
   if (!wt || !gt) return false;
   const titleOk = gt === wt || gt.indexOf(wt) >= 0 || wt.indexOf(gt) >= 0;
   const first = wa.split(/ (?:and|&|x|,) /)[0].trim();
+  const VAR = /\b(cover|remix|karaoke|instrumental|tribute|drum|piano|guitar|slowed|reverb|sped up|nightcore|8d|live|reaction|tutorial)\b/i;
+  if (VAR.test(got.title) && !VAR.test(want.title)) return false;
   return titleOk && (!wa || ga.indexOf(first || wa) >= 0);
 }
 export function parseAppleExport(text) {
